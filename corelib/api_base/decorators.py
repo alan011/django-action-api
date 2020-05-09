@@ -12,7 +12,7 @@ def _dataValidate(self, req, opt):
     if self.set_parameters_directly:
         return True
 
-    _fd = self.fields_defination
+    _fd = self.post_fields
     # To check `req` fields first.
     for field in req:
         if field not in self.params:

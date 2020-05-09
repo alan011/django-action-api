@@ -12,4 +12,4 @@ PERMISSION_GROUPS = OrderedDict({
 })
 
 # list data pagination.
-LIST_DATA_DEFAULT_LIMIT = 20
+DEFAULT_PAGE_LENGTH = 10

@@ -12,7 +12,7 @@ class CoroutineRunner(object):
     async def concurrent(self):
         loop = asyncio.get_event_loop()
         for real_work in self.works:
-            print(f"===> {str(real_work)}")
+            # print(f"===> {str(real_work)}")
             _func, *_params = real_work
             result = asyncio.gather(loop.run_in_executor(None, _func, *_params))
             self.tasks.append(result)

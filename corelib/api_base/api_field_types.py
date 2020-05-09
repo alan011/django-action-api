@@ -47,15 +47,29 @@ class StrType(FieldType):
     Initiallizing params:
         regex: can be provided at defining-time. Default '.*' to match any strings.
     """
-    def __init__(self, regex='.*', **kwargs):
+
+    def __init__(self, regex='.*', min_length=None, max_length=None, allow_none=False, **kwargs):
         super().__init__(**kwargs)
         self.regex = re.compile(regex)
+        self.allow_none = allow_none
+        self.min_length = min_length
+        self.max_length = max_length
 
     def __str__(self):
         return f"<StrType with regex='{self.regex}'>"
 
     def check(self, field_value):
+        if self.allow_none and field_value is None:
+            return field_value, None
         _field_value = str(field_value)
+        _len = len(_field_value)
+
+        if self.min_length is not None and _len < self.min_length:
+            return self.failed(f'Length of StrType value less than min_length {self.min_length}.')
+
+        if self.max_length is not None and _len > self.max_length:
+            return self.failed(f'Length of StrType value greater than max_length {self.min_length}.')
+
         if self.regex.match(_field_value):
             return _field_value, None
         return self.failed(f"Not match with regex '{self.regex}': '{field_value}'.")
@@ -128,7 +142,7 @@ class IntType(FieldType):
                 return self.failed(f"Illegal string number: '{field_value}'.")
             return self._check_value(int(_v))
         elif isinstance(field_value, int):
-            return self._check_value(int(_v))
+            return self._check_value(int(field_value))
         return self.failed(f"Not a number: '{field_value}'.")
 
 
@@ -216,14 +230,20 @@ class DatetimeType(FieldType):
         format: datetime string format passed to function datetime.strptime().
     """
 
-    def __init__(self, format='%Y-%m-%d %H:%M:%S', **kwargs):
+    def __init__(self, format='%Y-%m-%d %H:%M:%S', extra_allowed_values=None, extra_allowed_trans=None, **kwargs):
         super().__init__(**kwargs)
         self.format = format
+        self.extra_allowed_values = extra_allowed_values
+        self.extra_allowed_trans = extra_allowed_trans if extra_allowed_trans is not None else {}
 
     def __str__(self):
         return f"<DatetimeType with format='{self.format}'>"
 
     def check(self, field_value):
+        if self.extra_allowed_values and field_value in self.extra_allowed_values:
+            _value = self.extra_allowed_trans[field_value] if field_value in self.extra_allowed_trans else field_value
+            return _value, None
+
         _field_value = str(field_value)
         try:
             date_time = datetime.strptime(_field_value, self.format)

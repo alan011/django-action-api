@@ -39,9 +39,9 @@ class APIIngressBase(View):
         # make HttpResponse
         if handler.result:
             response_data = {"result": "SUCCESS", "message": str(handler.message)}
-            if handler.data is not None:
+            if getattr(handler, 'data', None) is not None:
                 response_data['data'] = handler.data
-            if handler.data_total_length is not None:
+            if getattr(handler, 'data_total_length', None) is not None:
                 response_data['data_total_length'] = handler.data_total_length
         else:
             response_data = {"result": "FAILED", "message": str(handler.error_message)}
