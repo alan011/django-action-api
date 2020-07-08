@@ -31,3 +31,9 @@ def genUUID(length):
     seeds += '0123456789'
     seeds_len = len(seeds)
     return ''.join(seeds[randint(0, seeds_len - 1)] for i in range(length))
+
+
+def choice_map(choices, value):
+    for k, v in choices:
+        if v == value:
+            return k

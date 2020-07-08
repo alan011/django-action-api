@@ -68,7 +68,7 @@ class StrType(FieldType):
             return self.failed(f'Length of StrType value less than min_length {self.min_length}.')
 
         if self.max_length is not None and _len > self.max_length:
-            return self.failed(f'Length of StrType value greater than max_length {self.min_length}.')
+            return self.failed(f'Length of StrType value greater than max_length {self.max_length}.')
 
         if self.regex.match(_field_value):
             return _field_value, None
