@@ -36,7 +36,7 @@ class BoolType(FieldType):
 
     def check(self, field_value=None):
         if field_value is None:
-            return self.default
+            return self.default, None
         return bool(field_value), None  # Means BoolType never check failed.
 
 
@@ -201,17 +201,17 @@ class IPType(FieldType):
         err = self.failed(f"Not an IP subnet: '{value}'.")
         tmp_l = value.split('/')
         if len(tmp_l) != 2:
-            return err
+            return None, err
         _, _err = self._check_ip(tmp_l[0])
         if _err is not None:
-            return err
+            return None, err
 
         try:
             subnet_mask_len = int(tmp_l[1])
         except Exception:
             return err
         if not 0 <= subnet_mask_len <= 32:
-            return err
+            return None, err
 
         return value, None
 
@@ -373,10 +373,10 @@ class DictType(FieldType):
                 err = self.failed(f"Not matched with fixed dict format '{str(self.format)}': '{field_value}'.")
                 for key, fieldtype in self.format.items():
                     if key not in field_value:
-                        return err
+                        return None, err
                     val_check, _err = fieldtype.check(field_value[key])
                     if _err is not None:
-                        return err
+                        return None, err
                     _dict[key] = val_check
                 return _dict, None
 
@@ -389,5 +389,5 @@ class DictType(FieldType):
                 if _err is not None:
                     return self.failed(f"Dict val '{str(val)}' not matched with FieldType '{str(self.val_type)}'.")
                 _dict[key_check] = val_check
-            return _dict
+            return _dict, None
         return self.failed(f"Not a dict: '{field_value}'.")
