@@ -17,12 +17,13 @@ class DetailDataMixin(BaseSerializingMixin):
         可通过设置`self.date_format`, `self.time_format`, `self.datetime_format`属性来自定义
     """
 
-    def getDetail(self, model):
-        obj = self.checked_params['id']
+    def getDetail(self, model, identifier='id', excluded_fields=None):
+        obj = self.checked_params[identifier]
         self.data = {}
         detail_fields = getattr(model, 'detail_fields', None)
         if detail_fields is None:
             detail_fields = [f.name for f in model._meta.get_fields()]
         for field in model.detail_fields:
-            k, v = self.getObjAttr(obj, field)
-            self.data[k] = v
+            if isinstance(excluded_fields, list) and field not in excluded_fields:
+                k, v = self.getObjAttr(obj, field)
+                self.data[k] = v
