@@ -23,7 +23,9 @@ class DetailDataMixin(BaseSerializingMixin):
         detail_fields = getattr(model, 'detail_fields', None)
         if detail_fields is None:
             detail_fields = [f.name for f in model._meta.get_fields()]
-        for field in model.detail_fields:
-            if isinstance(excluded_fields, list) and field not in excluded_fields:
-                k, v = self.getObjAttr(obj, field)
-                self.data[k] = v
+
+        if isinstance(excluded_fields, list):
+            detail_fields = [f for f in detail_fields if f not in excluded_fields]
+        for field in detail_fields:
+            k, v = self.getObjAttr(obj, field)
+            self.data[k] = v

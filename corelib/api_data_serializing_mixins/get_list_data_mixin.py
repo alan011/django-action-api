@@ -125,9 +125,11 @@ class ListDataMixin(BaseSerializingMixin):
         return list_data
 
     def getList(self, model, order_by=None, excludes=None, additional_filters=None):
+        if self.checked_params is None:
+            self.checked_params = {}
         search = {
             'search_value': self.checked_params.get('search'),
-            'search_fields': list(getattr(model, 'search_fields', None)),
+            'search_fields': list(getattr(model, 'search_fields', [])),
             'filters': {f: self.checked_params[f] for f in getattr(model, 'filter_fields', []) if self.checked_params.get(f) is not None},
             'order_by': order_by,
             'excludes': excludes,
