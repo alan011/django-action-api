@@ -1,6 +1,7 @@
 import time
 import sys
 from os import path, makedirs
+from datetime import datetime
 
 
 class Logger(object):
@@ -46,3 +47,9 @@ class Logger(object):
         log_time = time.strftime("%F %T", time.localtime(time.time()))
         log_line = ' '.join([log_time, level, msg])
         raise SystemExit(log_line)
+
+
+def debug_print(msg, file=sys.stdout):
+    time_now = datetime.now().strftime('%F %T')
+    prefix = f"===> {time_now} [debug]"
+    print(prefix, msg, flush=True, file=file)

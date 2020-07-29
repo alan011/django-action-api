@@ -99,7 +99,7 @@ class ListDataMixin(BaseSerializingMixin):
                 tmp_set.add(raw['id'])
         return data
 
-    def _makeListData(self, queryset, model):
+    def makeListData(self, queryset, model):
         """
         将queryset基于model.list_fields设置，转换成可序列化的数据列表;
         不管model.list_fields有没有指定id，都会返回id属性；
@@ -141,4 +141,4 @@ class ListDataMixin(BaseSerializingMixin):
         else:
             if "page_index" in self.checked_params:
                 queryset = self.pagination(queryset)
-            self.data = self._makeListData(queryset, model)
+            self.data = self.makeListData(queryset, model)
