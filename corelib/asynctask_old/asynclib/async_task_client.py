@@ -1,6 +1,6 @@
+from corelib.asynctask.config import ASYNC_TASK_SOCKET
 from django.conf import settings
-from tornado import gen, tcpclient
-from .defaults import ASYNC_TASK_BIND_ADDR, ASYNC_TASK_BIND_PORT
+import socket
 import json
 
 HEADER_PREFIX = 'DataLength:'
@@ -8,26 +8,11 @@ HEADER_LENTGH = 24
 
 
 class ClientResultException(Exception):
-    def __init__(self, err=None):
-        self.err = "ERROR: Result from AsyncTaskServer is not OK!" if err is None else err
-
     def __str__(self):
-        return self.err
+        return "Result from AsyncTaskServer is not OK!"
 
 
-class ClientRunningException(Exception):
-    def __init__(self, err=None):
-        self.err = "ERROR: Some error happened when running async client." if err is None else err
-
-    def __str__(self):
-        return f"{self.err}"
-
-
-class AsyncClient(object):
-    def __init__(self, server_addr=None, server_port=None):
-        self.server_addr = ASYNC_TASK_BIND_ADDR if server_addr is None else server_addr
-        self.server_port = ASYNC_TASK_BIND_PORT if server_port is None else server_port
-
+class AsyncTaskClient(object):
     def pack(self, msg):
         """
         To transfer string msg to bytes with fixed 24Bytes Header.
@@ -45,7 +30,7 @@ class AsyncClient(object):
 
         return (HEADER_PREFIX + header_value + msg).encode('utf-8'), None
 
-    async def go(self, uuid, name, module, tracking, *args, **kwargs):
+    def go(self, uuid, name, module, tracking, *args, **kwargs):
         """
         To send serialized func data to AsyncTaskServer.
 
@@ -59,7 +44,8 @@ class AsyncClient(object):
 
         Return None or err.
         """
-        # To make bytes data.
+        # Init socket client, make bytes data.
+        client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         data = {
             'uuid': uuid,
             'name': name,
@@ -71,27 +57,23 @@ class AsyncClient(object):
         data_str = json.dumps(data)
         data_bytes, err = self.pack(data_str)
         if err is not None:
-            raise ClientRunningException(f'ERROR: Client data_bytes packing failed: {err}')
+            return err
 
         # Send data and handle result.
-        count = 0
-        stream = None
-        while count < 3:
-            count += 1
-            try:
-                stream = await tcpclient.TCPClient().connect(self.server_addr, self.server_port)
-                break
-            except Exception:
-                await gen.sleep(3)
-        if stream is None:
-            raise ClientRunningException(f"Failed to connect to server. server_addr: {self.server_addr}, server_port: {self.server_port}")
-        await stream.write(data_bytes)
-        ret = await stream.read_bytes(256, partial=True)
-        ret_str = ret.decode('utf-8')
-        if ret_str != 'OK':
-            raise ClientResultException(ret_str)
+        err = None
+        try:
+            client.connect(ASYNC_TASK_SOCKET)
+            client.send(data_bytes)
+            result = client.recv(16)  # Result data always is in choices of 'OK' or 'ERROR'.
+            result_str = result.decode('utf-8')
+            if result_str != 'OK':
+                raise ClientResultException
+        except Exception as e:
+            err = str(e)
 
-        stream.close()
+        # The end.
+        client.close()
+        return err
 
     def record(self, uuid, name):
         """

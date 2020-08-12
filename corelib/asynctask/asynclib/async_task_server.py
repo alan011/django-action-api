@@ -1,120 +1,121 @@
 from corelib.tools.logger import Logger
-from corelib.asynctask.config import (
-    # ASYNC_TASK_LOGDIR,
-    # ASYNC_TASK_LOGFILE_PREFIX,
-    # ASYNC_TASK_WORKERS,
-    ASYNC_TASK_LOG_LEVEL,
+from .defaults import (
+    ASYNC_TASK_BIND_ADDR,
+    ASYNC_TASK_BIND_PORT,
+    ASYNC_TASK_WORKERS,
     ASYNC_TASK_REGISTER_MODULE,
-    ASYNC_TASK_SOCKET)
-from multiprocessing import Pool
+    ASYNC_TASK_LOG_LEVEL
+)
+
+# from multiprocessing import Pool
 from .async_task_client import HEADER_LENTGH
-import socket
-import os
-import time
+# import socket
+# import os
+# import time
 import json
+# import functools
 from django.conf import settings
 from importlib import import_module
+from tornado import gen, ioloop, tcpserver, iostream
 
 
-class AsyncTaskServer(object):
-    def __init__(self):
-        self.sock = ASYNC_TASK_SOCKET
-        self.pool = []
+class AsyncServer(tcpserver.TCPServer):
+    def __init__(self, chunk_size=None, logger=None, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.logger = Logger(trigger_level=ASYNC_TASK_LOG_LEVEL) if logger is None else logger
+        self.chunk_size = 1024 if chunk_size is None else chunk_size
+        self.funcs = {}
+
+    async def handle_stream(self, stream, address):
+        self.logger.msg_prefix = 'AsyncServer.handle_stream(): '
+
+        # read client data.
+        while True:
+            try:
+                self.logger.log("To receive data from clients...", level='DEBUG')
+                data_b = await stream.read_bytes(self.chunk_size, partial=True)
+                self.logger.log("To parsing client data header...", level='DEBUG')
+                header = data_b[:HEADER_LENTGH]
+                data_len = int(header.decode('utf-8').split(':')[1])
+                while len(data_b) < data_len:
+                    data_b += await stream.read_bytes(self.chunk_size)
+                self.logger.log("To parsing client data body...", level='DEBUG')
+                data = json.loads(data_b[HEADER_LENTGH:].decode('utf-8'))
+                self.logger.log(f"New task received: {str(data)}", level="INFO")
+                result = 'OK'
+                await stream.write(result.encode('utf-8'))
+            except iostream.StreamClosedError:  # Normally stoped connection by client.
+                self.logger.log(f"Returned result for client with value: '{result}'", level='DEBUG')
+                break
+            except Exception as e:
+                self.logger.log(str(e), level="ERROR")
+                result = 'ERROR'
+                break
+
+        # To prepare the real work data.
+        if result == 'OK':
+            self.logger.log(f"Now to prepare to run the blocking task.", level='DEBUG')
+            uuid, name, module, tracking = data['uuid'], data['name'], data['module'], data['tracking']
+            args, kwargs = data['args'], data['kwargs']
+
+            index = f"{module}.{name}"
+            func = self.funcs[index]
+
+            # Delays.
+            if func.delaytime > 0:  # Task delay.
+                self.logger.log(f"Task '{uuid}' delayed in {func.delaytime} seconds.")
+                await gen.sleep(func.delaytime)
+
+            # To run the real blocking work in IOLoop.
+            self.logger.log(f"Task '{uuid}' start to run: func={index}, tracking={tracking}, args={args}, kwargs={kwargs}")
+            await ioloop.IOLoop.current().run_in_executor(None, func, *args, **kwargs)
+            self.logger.log(f"Task '{uuid}' complete.")
+
+
+class MainServer(object):
+    def __init__(
+        self,
+        bind_addr: str = None,
+        bind_port: int = None,
+        subps: int = None,
+        logger: Logger = None
+    ) -> None:
+
+        self.bind_addr = ASYNC_TASK_BIND_ADDR if bind_addr is None else bind_addr
+        self.bind_port = ASYNC_TASK_BIND_PORT if bind_port is None else bind_port
+        self.subps = ASYNC_TASK_WORKERS if subps is None else subps
+        self.logger = Logger(trigger_level=ASYNC_TASK_LOG_LEVEL) if logger is None else logger
         self.funcs = {}
 
     def registerFunctions(self):
-        logger = Logger(msg_prefix='AsyncTaskServer.registerFunctions(): ', trigger_level=ASYNC_TASK_LOG_LEVEL)
+        self.logger.msg_prefix = 'AsyncServer.registerFunctions(): '
+
         for app in settings.INSTALLED_APPS:
             mod_str = f'{app}.{ASYNC_TASK_REGISTER_MODULE}'
             try:
                 mod = import_module(mod_str)
             except Exception:
-                logger.log(f"Ignore invalid django-installed app: '{app}'.", level='DEBUG')
+                self.logger.log(f"Ignore invalid django-installed app: '{app}'.", level='DEBUG')
             else:
                 for attr_name in filter(lambda a: not a.startswith('_'), dir(mod)):
                     func = getattr(mod, attr_name)
                     if getattr(func, 'is_asynctask', False):
                         index = f'{mod_str}.{attr_name}'
                         self.funcs[index] = func
-                        logger.log(f"To register asynctask funcion '{index}' succeeded.")
-
-    def asyncRun(self, uuid, name, module, tracking, *args, **kwargs):
-        """
-        To run a func asynchronously with `*args` and `**kwargs`
-        """
-        # logger = Logger(msg_prefix='AsyncTaskServer.asyncRun(*): ', trigger_level=ASYNC_TASK_LOG_LEVEL)
-        index = f'{module}.{name}'
-        func = self.funcs[index]
-        res = func()
-        print(res)
-        print("asyncRun not finished.")
-        pass
-
-    def worker(self, connection):
-        logger = Logger(msg_prefix='AsyncTaskServer.worker(): ', trigger_level=ASYNC_TASK_LOG_LEVEL)
-
-        # receive data from client. Parse json data.
-        try:
-            chunk_len = 8196
-            data_b = connection.recv(chunk_len)
-            header = data_b[:HEADER_LENTGH]
-            data_len = int(header.decode('utf-8').split(':')[1])
-            while len(data_b) < data_len:
-                data_b = connection.recv(chunk_len)
-            data = json.loads(data_b[HEADER_LENTGH:].decode('utf-8'))
-            # logger.log(f"New task received: {str(data)}", level="INFO")
-            result = 'OK'
-        except Exception as e:
-            logger.log(str(e), level="ERROR")
-            result = 'ERROR'
-        connection.send(result.encode('utf-8'))
-
-        # To run task.
-        if result == 'OK':
-            uuid, name, module, tracking = data['uuid'], data['name'], data['module'], data['tracking']
-            args, kwargs = data['args'], data['kwargs']
-
-            index = f"{module}.{name}"
-            func = self.funcs[index]
-            if func.delaytime > 0:  # Task delay.
-                logger.log(f"Task '{uuid}' delayed in {func.delaytime} seconds.")
-                time.sleep(func.delaytime)
-            logger.log(f"Task '{uuid}' start to run: func={index}, tracking={tracking}, args={args}, kwargs={kwargs}")
-            func = self.funcs[index]
-            func(*args, **kwargs)
-            logger.log(f"Task '{uuid}' complete.")
+                        self.logger.log(f"To register asynctask funcion '{index}' succeeded.")
 
     def main(self):
-        logger = Logger(msg_prefix='AsyncTaskServer.main(): ', trigger_level=ASYNC_TASK_LOG_LEVEL)
-        logger.log("Server initializing...")
+        self.logger.msg_prefix = 'AsyncServer.main(): '
+        self.logger.log("Server initializing...")
 
         # To register asynctask functions.
         self.registerFunctions()
         if not self.funcs:
-            return logger.log("No asynctask funcions registered. AsyncTaskServer now quit.", level="FATAL")
+            return self.logger.log("No asynctask funcions registered. AsyncServer now quit.", level="FATAL")
 
-        # Start to listen socket.
-        try:
-            server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            if os.path.exists(self.sock):
-                os.unlink(self.sock)
-            server.bind(self.sock)
-            server.listen(0)
-        except Exception as e:
-            return logger.log(f"Failed to initialize server: {str(e)}", level="FATAL")
-        logger.log("Server up!")
-
-        # start worker.
-        with Pool(processes=2) as pool:
-            while True:
-                connection, _ = server.accept()
-                pool.apply_async(self.worker, (connection, ))
-
-            # quit.
-            connection.close()
-        # while True:
-        #     connection, _ = server.accept()
-        #     self.worker(connection)
-
-        # quit.
-        # connection.close()
+        # To init tornado tcpserver.
+        server = AsyncServer()
+        server.funcs = self.funcs
+        server.listen(self.bind_port, self.bind_addr)
+        server.start(self.subps)  # To fork process
+        ioloop.IOLoop.current().start()

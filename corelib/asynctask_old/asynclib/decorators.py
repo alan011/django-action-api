@@ -1,7 +1,6 @@
 from functools import wraps, partial
-from .async_task_client import AsyncClient
+from .async_task_client import AsyncTaskClient
 from corelib.tools.func_tools import genUUID
-from tornado import ioloop
 
 
 def asynctask(func=None, delaytime=0, tracking=False, name=None):
@@ -18,7 +17,7 @@ def asynctask(func=None, delaytime=0, tracking=False, name=None):
         return partial(asynctask, delaytime=delaytime, tracking=tracking, name=name)
 
     def delay(*args, **kwargs):
-        client = AsyncClient()
+        client = AsyncTaskClient()
         err = 'UUID_EXIST'
         while err == 'UUID_EXIST':
             uuid = genUUID(64)
@@ -29,11 +28,7 @@ def asynctask(func=None, delaytime=0, tracking=False, name=None):
             err = client.record(uuid, name=_name)
             if err is not None and err != 'UUID_EXIST':
                 return err
-        main = partial(client.go, uuid, func.__name__, func.__module__, tracking, *args, **kwargs)
-        try:
-            ioloop.IOLoop.current().run_sync(main)
-        except Exception as e:
-            return str(e)
+        return client.go(uuid, func.__name__, func.__module__, tracking, *args, **kwargs)
 
     @wraps(func)
     def wrapper(*args, **kwargs):
