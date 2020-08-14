@@ -1,11 +1,8 @@
-import time
-import re
 from functools import wraps
-from datetime import datetime
 
 
 # 定时任务装饰器。
-def cron(name, every=None, crontab=None, single_process=False):
+def cron(every=None, crontab=None, single_process=True):
     """
     一个cron装饰器，用于在timer中执行定时任务。
     内置了self参数，只能作用于Timer与其子类的实例方法。
@@ -24,42 +21,27 @@ def cron(name, every=None, crontab=None, single_process=False):
     def decorator(func):
         @wraps(func)
         def runInCron(self, *args, **kwargs):
-            to_run = False
-            if every:
-                # 评估时间，决定是否执行。
-                if int(time.time() - self.cron_origin_start_time) % every == 0:
-                    if not self.cron_pool[name]['running']:  # 当上一次执行的进程还未结束时，本次不执行。
-                        to_run = True
-            elif crontab:
-                _crontab = crontab.split()
-                if len(_crontab) == 6:
-                    # 评估crontab是否与当前时间相符
-                    now = datetime.now()
-                    now_str = now.strftime("%S %M %H %d %m %W")
-                    now_list = [int(t) for t in now_str.split()]
-                    match_count = 0
-                    for i in range(6):
-                        if _crontab[i] == '*' or int(_crontab[i]) == now_list[i]:
-                            match_count += 1
-                        elif re.search(r'^\*/[1-9][0-9]*$', _crontab[i]):
-                            _every = int(_crontab[i].split('/')[1])
-                            if now_list[i] % _every == 0:
-                                match_count += 1
-                    if match_count == 6:
-                        to_run = True
+            name = func.__name__
+            print(f'===> func name: {name}, state: {self.cron_state}')
+            # 对multiprocess的工作模式，修改manager-dict的一级元素，才能触发manager的proxy进程间共享变量的修改，下同。
+            state = self.cron_state[name]
+            state['running'] = True
+            self.cron_state[name] = state
+            print(f'===> func name: {name}, state: {self.cron_state}')
 
-            # 执行函数
-            result = None
-            if to_run:
-                self.cron_pool[name]['running'] = True
-                result = func(self, *args, **kwargs)
-                self.cron_pool[name]['running'] = False
-                self.cron_pool[name]['last_result'] = result
+            result = func(self, *args, **kwargs)
+
+            state = self.cron_state[name]
+            state['running'] = False
+            state['last_result'] = result
+            self.cron_state[name] = state
             return result
 
         # 设置工作函数内置属性
         runInCron._is_a_timer_method = True
-        runInCron._is_a_single_proecess_timer = single_process
+        runInCron._timer_every = every
+        runInCron._timer_crontab = crontab
+        runInCron._timer_single_process = single_process
 
         return runInCron
     return decorator
