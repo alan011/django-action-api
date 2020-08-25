@@ -1,6 +1,6 @@
 from django.conf import settings
 from tornado import gen, tcpclient
-from .defaults import ASYNC_TASK_BIND_ADDR, ASYNC_TASK_BIND_PORT
+from .defaults import ASYNCTASK_BIND_ADDR, ASYNCTASK_BIND_PORT
 import json
 
 HEADER_PREFIX = 'DataLength:'
@@ -25,8 +25,8 @@ class ClientRunningException(Exception):
 
 class AsyncClient(object):
     def __init__(self, server_addr=None, server_port=None):
-        self.server_addr = ASYNC_TASK_BIND_ADDR if server_addr is None else server_addr
-        self.server_port = ASYNC_TASK_BIND_PORT if server_port is None else server_port
+        self.server_addr = ASYNCTASK_BIND_ADDR if server_addr is None else server_addr
+        self.server_port = ASYNCTASK_BIND_PORT if server_port is None else server_port
 
     def pack(self, msg):
         """

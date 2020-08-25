@@ -1,10 +1,10 @@
 from corelib.tools.logger import Logger
 from .defaults import (
-    ASYNC_TASK_BIND_ADDR,
-    ASYNC_TASK_BIND_PORT,
-    ASYNC_TASK_WORKERS,
-    ASYNC_TASK_REGISTER_MODULE,
-    ASYNC_TASK_LOG_LEVEL
+    ASYNCTASK_BIND_ADDR,
+    ASYNCTASK_BIND_PORT,
+    ASYNCTASK_WORKERS,
+    ASYNCTASK_REGISTER_MODULE,
+    ASYNCTASK_LOG_LEVEL
 )
 
 # from multiprocessing import Pool
@@ -22,7 +22,7 @@ from tornado import gen, ioloop, tcpserver, iostream
 class AsyncServer(tcpserver.TCPServer):
     def __init__(self, chunk_size=None, logger=None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.logger = Logger(trigger_level=ASYNC_TASK_LOG_LEVEL) if logger is None else logger
+        self.logger = Logger(trigger_level=ASYNCTASK_LOG_LEVEL) if logger is None else logger
         self.chunk_size = 1024 if chunk_size is None else chunk_size
         self.funcs = {}
 
@@ -81,17 +81,17 @@ class MainServer(object):
         logger: Logger = None
     ) -> None:
 
-        self.bind_addr = ASYNC_TASK_BIND_ADDR if bind_addr is None else bind_addr
-        self.bind_port = ASYNC_TASK_BIND_PORT if bind_port is None else bind_port
-        self.subps = ASYNC_TASK_WORKERS if subps is None else subps
-        self.logger = Logger(trigger_level=ASYNC_TASK_LOG_LEVEL) if logger is None else logger
+        self.bind_addr = ASYNCTASK_BIND_ADDR if bind_addr is None else bind_addr
+        self.bind_port = ASYNCTASK_BIND_PORT if bind_port is None else bind_port
+        self.subps = ASYNCTASK_WORKERS if subps is None else subps
+        self.logger = Logger(trigger_level=ASYNCTASK_LOG_LEVEL) if logger is None else logger
         self.funcs = {}
 
     def registerFunctions(self):
         self.logger.msg_prefix = 'AsyncServer.registerFunctions(): '
 
         for app in settings.INSTALLED_APPS:
-            mod_str = f'{app}.{ASYNC_TASK_REGISTER_MODULE}'
+            mod_str = f'{app}.{ASYNCTASK_REGISTER_MODULE}'
             try:
                 mod = import_module(mod_str)
             except Exception:

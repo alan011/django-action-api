@@ -6,7 +6,7 @@ class AddDataMixin(object):
     作为核心功能的扩展，必须和核心类`APIHandlerBase`一起使用。
     """
 
-    def addData(self, model, row_data=None):
+    def addData(self, model, row_data=None, success_msg=None, error_msg=None):
         if not row_data:
             row_data = self.checked_params
 
@@ -22,11 +22,12 @@ class AddDataMixin(object):
         try:
             obj.save()
         except Exception as e:
-            return self.error(f"Failed to add data. {str(e)}")
+            _msg = f"Failed to add data. {str(e)}" if error_msg is None else error_msg
+            return self.error(_msg)
 
         # Then, to set m2m fields.
         for f in m2m_fields:
             getattr(obj, f).set(m2m_fields[f])
 
-        self.message = f"To add data succeeded."
+        self.message = f"To add data succeeded." if success_msg is None else success_msg
         return obj

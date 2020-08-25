@@ -112,16 +112,12 @@ class ListDataMixin(BaseSerializingMixin):
             list_fields.append('id')
 
         list_data = []
-        # tmp_set = set()
         for obj in queryset:
             raw = {}
             for field in list_fields:
                 k, v = self.getObjAttr(obj, field)
                 raw[k] = v
             list_data.append(raw)
-        #     if raw['id'] not in tmp_set:
-        #         tmp_set.add(raw['id'])
-        #         list_data.append(raw)
         return list_data
 
     def getList(self, model, order_by=None, excludes=None, additional_filters=None):
