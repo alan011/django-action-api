@@ -16,6 +16,9 @@ class BaseSerializingMixin(object):
         """
         用于将日期、时间对象的数据，转换成字符串
         """
+        if value is None:
+            return ''
+
         if not (isinstance(value, datetime) or isinstance(value, date) or isinstance(value, time)):
             return value
 
