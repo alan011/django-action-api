@@ -94,8 +94,9 @@ class MainServer(object):
             mod_str = f'{app}.{ASYNCTASK_REGISTER_MODULE}'
             try:
                 mod = import_module(mod_str)
-            except Exception:
-                self.logger.log(f"Ignore invalid django-installed app: '{app}'.", level='DEBUG')
+            except Exception as e:
+                self.logger.log(f"Ignore invalid django-installed app: '{app}'.")
+                self.logger.log(f"{str(e)}", level='DEBUG')
             else:
                 for attr_name in filter(lambda a: not a.startswith('_'), dir(mod)):
                     func = getattr(mod, attr_name)

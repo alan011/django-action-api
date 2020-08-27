@@ -2,6 +2,8 @@ from functools import wraps, partial
 from .async_task_client import AsyncClient
 from corelib.tools.func_tools import genUUID
 from tornado import ioloop
+from tornado.platform.asyncio import AnyThreadEventLoopPolicy
+import asyncio
 
 
 def asynctask(func=None, delaytime=0, tracking=False, name=None):
@@ -30,6 +32,7 @@ def asynctask(func=None, delaytime=0, tracking=False, name=None):
             if err is not None and err != 'UUID_EXIST':
                 return err
         main = partial(client.go, uuid, func.__name__, func.__module__, tracking, *args, **kwargs)
+        asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())  # To make ioloop runnable in any thread within Django.
         try:
             ioloop.IOLoop.current().run_sync(main)
         except Exception as e:
