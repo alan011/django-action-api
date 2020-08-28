@@ -189,7 +189,7 @@ urlpatterns = [
 
 ```python
 关于数据返回，若处理正确则返回一个JSON字典。
-stat_code: 200
+status_code: 200
 
 {
     "result": "SUCCESS",  # Or "FAILED", 如果有内容上的错误。
