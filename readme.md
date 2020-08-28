@@ -46,7 +46,9 @@ API非RESTful设计，这是因为，设计这套框架的初衷，是为了在�
 
 ## 示例代码
 
-一个示例django app，文件路径
+一个示例django app，实现了对数据表的常规增、删、改、查操作的一组action接口。
+
+代码结构：
 
 ```script
 some_django_app/
@@ -90,7 +92,7 @@ class CMDBHost(models.Model):
 
 ```
 
-常规增删改查的handler.py示例
+常规增、删、改、查的handlers.py示例
 
 ```python
 from corelib import APIHandlerBase, ChoiceType, pre_handler, StrType, IntType, ObjectType, IPType
