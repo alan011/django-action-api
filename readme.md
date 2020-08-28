@@ -158,7 +158,8 @@ class HostWriteHandler(APIHandlerBase, AddDataMixin, ModifyDataMixin, DeleteData
 # 关于这点，以及如何抛错，后面会有详细示例。
 #
 # pre_handler装饰器，集成了post数据自动校验、权限检查、action请求记录等功能，
-# 若一个action接口不需要这些，action方法也可不用这个装饰器。
+# 如果数据校验失败，在pre_handler中就会直接返回`status_code=400`的错误，action函数不会执行。
+# 若一个action接口不需要pre_handler中的这些功能，action方法也可不用这个装饰器。
 #
 # 一般将get和write做分开定义，方便做权限控制。权限控制请参考后续的示例代码。
 #
