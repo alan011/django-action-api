@@ -1,8 +1,8 @@
-# Django Action Framework
+# Django Action API
 
 ## 简介
 
-django-action-framework是一个基于django的API框架，原生支持异步任务处理，不依赖celery这种三方组件。
+django-action-api是一个基于django的API框架，原生支持异步任务处理，不依赖celery这种三方组件。
 
 API封装了request与reponse处理过程，开发者只需写对应action的handler处理方法即可。
 
