@@ -98,6 +98,7 @@ from corelib.api_data_serializing_mixins.get_list_data_mixin import ListDataMixi
 from corelib.api_data_serializing_mixins.add_data_mixin import AddDataMixin
 from corelib.api_data_serializing_mixins.get_detail_data_mixin import DetailDataMixin
 from corelib.api_data_serializing_mixins.modify_data_mixin import ModifyDataMixin
+from corelib.api_data_serializing_mixins.delete_data_mixin import DeleteDataMixin
 from .models import HostENV, CMDBHost
 
 
@@ -120,7 +121,7 @@ class HostGetHandler(APIHandlerBase, ListDataMixin, DetailDataMixin):
         self.getDetail(model=CMDBHost)
 
 
-class HostWriteHandler(APIHandlerBase, AddDataMixin, ModifyDataMixin, DetailDataMixin):
+class HostWriteHandler(APIHandlerBase, AddDataMixin, ModifyDataMixin, DeleteDataMixin):
     post_fields = {  # post数据自动校验设置
         'hostname': StrType(regex='^H', min_length=16, max_length=32),  # 必须以H开头，长度介于16到32的字符串
         'hostip': IPType(),  # IP格式的校验。
