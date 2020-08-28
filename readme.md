@@ -42,7 +42,17 @@ API非RESTful设计，这是因为，设计这套框架的初衷，是为了在�
 
 ## 安装
 
-将corelib目录整个放到django项目根目录即可
+将corelib目录整个放到django项目根目录即可。
+
+需pip安装的依赖软件包：
+
+```text
+Django
+mysqlclient
+tornado
+jsonfield
+# ansible  # 如果需要用到corelib/tools/ansible_runner.py工具的话。
+```
 
 ## 示例代码
 
