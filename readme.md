@@ -190,6 +190,8 @@ urlpatterns = [
 
 最后，别忘了在django的settings.py中添加此app，以及将此处的urls.py include到django的全局urls.py中。
 
+注意：一般一个django app只需在全局urls.py定义中，定义一个path即可。可有效避免过于复杂的url匹配规则，引起意料之外的错误。
+
 ## 请求体数据格式与返回数据格式
 
 采用POST方法请求，post数据采用json格式传递，并满足以下要求：
