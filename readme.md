@@ -138,9 +138,18 @@ class HostWriteHandler(APIHandlerBase, AddDataMixin, ModifyDataMixin, DetailData
     def modiyHost(self):
         self.modifyData()
 
-
-# 更多字段校验格式请查阅源码。自定义字段校验格式需满足check约定。
+# 所有的handler函数无需return，处理结果设置在handler的固有属性即可，比如：
+# 若不用序列化工具，可自行做ORM数据查询，然后设置`self.data`与`self.message`即可，
+# 关于这点，以及如何抛错，后面会有详细示例。
+#
+# pre_handler装饰器，集成了post数据自动校验、权限检查、action请求记录等功能，
+# 若一个action接口不需要这些，action方法也可不用这个装饰器。
+#
 # 一般将get和write做分开定义，方便做权限控制。权限控制请参考后续的示例代码。
+#
+# 更多字段校验格式请查阅源码: `corelib/api_base/api_field_types.py`。
+# 也可修改源码，自定义数据校验格式。
+# 注意：自定义字段校验格式需满足check约定。
 
 ```
 
