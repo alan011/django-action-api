@@ -106,16 +106,16 @@ class HostGetHandler(APIHandlerBase, ListDataMixin, DetailDataMixin):
         'status': ChoiceType('running', 'stopped'),  # list数据的filter设置。只能传递这两个值之一，否则校验返回失败
         'page_length': IntType(min=1),  # 分页单页数据条数
         'page_index': IntType(min=1),  # 分页页面index
-        'id': ObjectType(model=Project),  # 校验之后将得到一个db数据对象
+        'id': ObjectType(model=CMDBHost),  # 校验之后将得到一个db数据对象
     }
 
     @pre_handler(opt=['search', 'group.name', 'coding_type', 'page_length', 'page_index'])
     def getHostList(self):  # action处理函数
-        self.getList(model=Project)
+        self.getList(model=CMDBHost)
 
     @pre_handler(req=['id'])
     def getHostDetail(self):
-        self.getDetail(model=Project)
+        self.getDetail(model=CMDBHost)
 
 
 class HostWriteHandler(APIHandlerBase, AddDataMixin, ModifyDataMixin, DetailDataMixin):
