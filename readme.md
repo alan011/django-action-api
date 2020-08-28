@@ -84,9 +84,9 @@ class CMDBHost(models.Model):
     id = models.AutoField('ID', primary_key=True)
     hostname = models.CharField('主机名', max_length=64, default='')
     hostip = models.CharField('主机IP', max_length=32, default='')
-    env = ForeignKey(HostENV, on_delete=models.SET_NULL, related_name='hosts', null=True)
+    env = models.ForeignKey(HostENV, on_delete=models.SET_NULL, related_name='hosts', null=True)
     status = models.CharField('主机状态', max_length=32, default='')
-    create_time = DateTimeField('创建时间', default=timezone.now)
+    create_time = models.DateTimeField('创建时间', default=timezone.now)
 
     # 序列化设置
     list_fields = [
