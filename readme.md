@@ -186,10 +186,11 @@ urlpatterns = [
     # "auth_token": "xxxxxxxxxxxxxx",  # 若提供，则走token认证，否则走session认证。
     # ...其他字段
 }
+```
+
+关于数据返回，若处理正确则返回一个JSON字典， status_code为200：
 
 ```python
-关于数据返回，若处理正确则返回一个JSON字典。
-status_code: 200
 
 {
     "result": "SUCCESS",  # Or "FAILED", 如果有内容上的错误。
