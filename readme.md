@@ -46,9 +46,7 @@ API非RESTful设计，这是因为，设计这套框架的初衷，是为了在�
 
 ## 示例代码
 
-Django中的models.py
-
-文件路径
+一个示例django app，文件路径
 
 ```script
 some_django_app/
