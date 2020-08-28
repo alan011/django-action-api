@@ -84,7 +84,7 @@ class CMDBHost(models.Model):
         'status',
         'env.name',  # 关系型用'.'来串联层级关系，支持多级串联。
     ]
-    detail_fields = list_fields + ['creat_time']  # 时间类型序列化时，将自动转换为对应格式的字符串，默认格式'%F %T'，支持自定义。
+    detail_fields = list_fields + ['create_time']  # 时间类型序列化时，将自动转换为对应格式的字符串，默认格式'%F %T'，支持自定义。
 
 ```
 
