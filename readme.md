@@ -2,35 +2,214 @@
 
 ## 简介
 
-django-action-framework是一个基于django的API框架，适用于运维开发领域（devops领域）的后端开发框架。
+django-action-framework是一个基于django的API框架，原生支持异步任务处理，不依赖celery这种三方组件。
 
-考虑运维开发领域的使用场景，此框架不追求高性能，而是极致追求开发的高效与便捷、易用。
+API封装了request与reponse处理过程，开发者只需写对应action的handler处理方法即可。
 
-非RESTful设计，运维开发领域，操作类偏多，把所有操作抽象为资源的方式不够便捷、不够直观。故，我们把所有接口调用都抽象为一个action，都用POST方法来交互，每个action对应后台的一个处理方法。这样设计，更符合运维开发领域的思维逻辑。
+API非RESTful设计，这是因为，设计这套框架的初衷，是为了在运维开发领域中使用。而运维开发，操作类偏多，资源类相对偏少，把所有操作抽象为资源的方式不够便捷、不够直观。故，这里把所有接口都抽象为一个action，都用POST方法通过传JSON来交互，每个action对应的一个handler处理函数。这样设计，更符合运维开发领域的思维逻辑。
 
-## 特点
+## 主要特点
 
-**递归校验**
+* 原生支持异步
 
-对于请求数据，支持任意嵌套的JSON数据校验
+集成了tornado异步非阻塞处理模块，支持高并发任务处理。采用`TCP C/S`模式处理异步任务，不依赖中间件broker，无需安装三方组件。
 
-**灵活的数据序列化**
+* 递归校验
 
-**支持异步任务**
+对于请求的JSON数据参数，支持绝大多数场景的递归嵌套校验。
 
-集成了异步任务模块，异步任务使用本地socket来实现rpc调用，无需像celery一样安装broker中间件。
-异步任务默认不记录执行结果，要记录执行结果，可以将异步任务模块的api模块（corelib.asynctask.api），加入到django的INSTALLED_APPS中，启用异步任务backend，来记录执行结果，跟踪执行状态。corelib.asynctask.api模块提供一套api方便查看需要记录的异步任务。
+* 灵活的数据序列化
 
-**支持定时任务**
+提供各种序列化Mixin工具，分层封装，对常规的增、删、改、查数据操作，提供灵活的、分层的序列化支持。可按需从不同层级接入序列化工具，开发灵活。
+
+另外，列表数据的序列化支持分页操作。
+
+* 提供cron定时器
 
 集成timer定时任务模块，支持every、crontab两种方式运行定时任务
 
-**支持token管理**
+* 提供接口权限管理控制模块
 
-**支持接口权限控制**
+* 提供action请求记录模块
 
-**支持接口操作审计**
+* 提供API的token管理工具
 
-**所有功能模块松耦合、可插拔**
+* 提供一系列运维开发领域的常用工具
 
-除了核心模块外，其他功能模块均可以django app的形式来决定是否启用。
+## 示例代码
+
+Django中的models.py
+
+文件路径
+
+```script
+some_django_app/
+    api.py
+    handlers.py
+    models.py
+    urls.py
+```
+
+包含序列化设置的models.py
+
+```python
+from django.db import models
+from django.utils import timezone
+
+
+class HostENV(models.Model):
+    id = models.AutoField('ID', primary_key=True)
+    name = models.CharField('环境名称', max_length=32, default='')
+
+
+class CMDBHost(models.Model):
+    id = models.AutoField('ID', primary_key=True)
+    hostname = models.CharField('主机名', max_length=64, default='')
+    hostip = models.CharField('主机IP', max_length=32, default='')
+    env = ForeignKey(HostENV, on_delete=models.SET_NULL, related_name='hosts', null=True)
+    status = models.CharField('主机状态', max_length=32, default='')
+    create_time = DateTimeField('创建时间', default=timezone.now)
+
+    # 序列化设置
+    list_fields = [
+        'id', 'hostname', 'hostip',  # 直接取值的字段
+        {'env': ['id', 'name']},  # 关系型字段的序列化，支持多级嵌套
+    ]
+    search_fields = ['hostname', 'hostip']  # 搜索设置。列表序列化器，将会在这两个字段中做模糊搜索，取并集。
+    filter_fields = [  # 精确过滤字段，多个字段取交集。
+        'status',
+        'env.name',  # 关系型用'.'来串联层级关系，支持多级串联。
+    ]
+    detail_fields = list_fields + ['creat_time']  # 时间类型序列化时，将自动转换为对应格式的字符串，默认格式'%F %T'，支持自定义。
+
+```
+
+常规增删改查的handler.py示例
+
+```python
+from corelib import APIHandlerBase, ChoiceType, pre_handler, StrType, IntType, ObjectType, IPType
+from corelib.api_data_serializing_mixins.get_list_data_mixin import ListDataMixin
+from corelib.api_data_serializing_mixins.add_data_mixin import AddDataMixin
+from corelib.api_data_serializing_mixins.get_detail_data_mixin import DetailDataMixin
+from corelib.api_data_serializing_mixins.modify_data_mixin import ModifyDataMixin
+from .models import HostENV, CMDBHost
+
+
+class HostGetHandler(APIHandlerBase, ListDataMixin, DetailDataMixin):
+    post_fields = {  # post数据自动校验设置
+        'search': StrType(),  # 表示接受任意字符串
+        'env.name': StrType(),  # list数据的filter设置。需跟models中的filter_fields保持一致。
+        'status': ChoiceType('running', 'stopped'),  # list数据的filter设置。只能传递这两个值之一，否则校验返回失败
+        'page_length': IntType(min=1),  # 分页单页数据条数
+        'page_index': IntType(min=1),  # 分页页面index
+        'id': ObjectType(model=Project),  # 校验之后将得到一个db数据对象
+    }
+
+    @pre_handler(opt=['search', 'group.name', 'coding_type', 'page_length', 'page_index'])
+    def getHostList(self):  # action处理函数
+        self.getList(model=Project)
+
+    @pre_handler(req=['id'])
+    def getHostDetail(self):
+        self.getDetail(model=Project)
+
+
+class HostWriteHandler(APIHandlerBase, AddDataMixin, ModifyDataMixin, DetailDataMixin):
+    post_fields = {  # post数据自动校验设置
+        'hostname': StrType(regex='^H', min_length=16, max_length=32),  # 必须以H开头，长度介于16到32的字符串
+        'hostip': IPType(),  # IP格式的校验。
+        'env': ObjectType(model=HostENV),
+        'id': ObjectType(model=CMDBHost),
+    }
+
+    @pre_handler(req=['hostname', 'env'], opt=['hostip'])  # req为post数据中必须提供的字段，opt为可选。不在这两个列表中的字段，将被自动忽略。
+    def addHost(self):
+        self.addData(model=CMDBHost)
+
+    @pre_handler(req=['id'])
+    def deleteHost(self):
+        self.deleteData()
+
+    @pre_handler(req=['id'], opt=['hostname', 'env', 'hostip'])
+    def modiyHost(self):
+        self.modifyData()
+
+
+# 更多字段校验格式请查阅源码。自定义字段校验格式需满足check约定。
+# 一般将get和write做分开定义，方便做权限控制。权限控制请参考后续的示例代码。
+
+```
+
+将定义好的handler与action处理函数注册到api.py中
+
+```python
+from corelib import APIIngressBase
+from .handlers import HostGetHandler, HostWriteHandler
+
+
+class APIIngress(APIIngressBase):  # 请求会自动根据此处的actions定义来分发到handler
+    actions = {
+        'getHostList': HostGetHandler,  # key需保持和实际的处理函数名称一至。
+        'getHostDetail': HostGetHandler,
+        'addHost': HostWriteHandler,
+        'deleteHost': HostWriteHandler,
+        'modiyHost': HostWriteHandler,
+    }
+
+```
+
+一个基本上固定不变的urls.py
+
+```python
+from django.urls import path
+from .api import APIIngress
+
+urlpatterns = [
+    path('api/v1', APIIngress.as_view()),
+]
+
+```
+
+最后，别忘了在django的settings.py中添加此app，以及将此处的urls.py include到django的全局urls.py中。
+
+## 请求体数据格式与返回数据格式
+
+采用POST方法请求，post数据采用json格式传递，并满足以下要求：
+
+```python
+{
+    "action": "getHost",  # 对应的action
+    # "auth_token": "xxxxxxxxxxxxxx",  # 若提供，则走token认证，否则走session认证。
+    # ...其他字段
+}
+
+```python
+关于数据返回，若处理正确则返回一个JSON字典。
+stat_code: 200
+
+{
+    "result": "SUCCESS",  # Or "FAILED", 如果有内容上的错误。
+    "data": ...  # 任意数据
+    "message": "一条文字消息"
+}
+
+如果出现了系统级别的错误，则会一个字符串。status_code将为4xx或5xx（可自定义）。
+
+
+## 更多示例
+
+* 异步代码
+
+<稍后补充>
+
+* 权限检查
+
+<稍后补充>
+
+* 操作记录
+
+<稍后补充>
+
+* cron定时任务
+
+<稍后补充>
