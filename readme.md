@@ -241,20 +241,20 @@ Action API异步模块提供一个独立运行的异步服务，通RPC调用来�
 
 异步服务程序：`corelib/asynctask/bin/asynctask_server`
 
-* 一个简单示例
+### 一个简单示例
 
 异步代码结构要求：
 
 ```script
 some_django_app/
     api.py
-    asynctask.py  # 异步任务模块，模块名称（文件名前缀），可以通过配置项`ASYNCTASK_REGISTER_MODULE`在settings中设定
+    asynctasks.py  # 异步任务模块，模块名称（文件名前缀），可以通过配置项`ASYNCTASK_REGISTER_MODULE`在settings中设定
     handlers.py
     models.py
     urls.py
 ```
 
-一个没啥用的异步任务，仅用做示例:
+一个没啥用的异步任务，仅用做示例（asynctasks.py模块内容）:
 
 ```python
 from corelib.asynctask.asynclib.decorators import asynctask
@@ -300,7 +300,7 @@ python3 corelib/asynctask/bin/asynctask_server project_setting_diretory
 # 启动过程中，异步服务会自动注册asynctask中定义的异步任务处理函数。
 ```
 
-* 延迟调用
+### 延迟调用
 
 delay()方法支持固有参数delaytime，用于名副其实的延迟调用。
 
