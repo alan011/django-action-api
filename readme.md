@@ -295,7 +295,7 @@ class AsyncAPIHandler(APIHandlerBase):
 
 cd /path/to/your_django_project/
 
-python3 corelib/asynctask/bin/asynctask_server project_setting_diretory
+python3 corelib/asynctask/bin/asynctask_server project_setting_diretory.settings
 
 # 启动过程中，异步服务会自动注册asynctask中定义的异步任务处理函数。
 ```
