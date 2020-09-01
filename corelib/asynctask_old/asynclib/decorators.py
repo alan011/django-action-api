@@ -1,6 +1,8 @@
 from functools import wraps, partial
 from .async_task_client import AsyncTaskClient
 from corelib.tools.func_tools import genUUID
+from django.conf import settings
+from djang.utils import timezone
 
 
 def asynctask(func=None, delaytime=0, tracking=False, name=None):
@@ -28,11 +30,48 @@ def asynctask(func=None, delaytime=0, tracking=False, name=None):
             err = client.record(uuid, name=_name)
             if err is not None and err != 'UUID_EXIST':
                 return err
+        if tracking:
+            kwargs['__async_task_uuid__'] = uuid
+            kwargs['__async_func_name__'] = func.__name__
         return client.go(uuid, func.__name__, func.__module__, tracking, *args, **kwargs)
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        res = func(*args, **kwargs)
+        # to record.
+        _to_record = False
+        if tracking and 'corelib.asynctask.api' in settings.INSTALLED_APPS:
+            _to_record = True
+            uuid = kwargs.pop('__async_task_uuid__')
+            func_name = kwargs.pop('__async_func_name__')
+            from corelib.asynctask.api.models import AsyncTask
+            obj = AsyncTask.objects.filter(uuid=uuid).first()
+            obj.status = 1
+            obj.save()
+
+        try:
+            # 执行真实函数
+            res = func(*args, **kwargs)
+
+        except Exception as e:
+            if _to_record:
+                obj.result = False
+                obj.status = 2
+                obj.result_data = {
+                    'result': False,
+                    'error_msg': f"ERROR: To run asynctask '{func_name}' failed. task uuid: '{uuid}'. {str(e)}",
+                    'data': None
+                }
+                obj.finish_time = timezone.now()
+                obj.save()
+            else:
+                raise e
+        else:
+            if _to_record:
+                obj.result = True
+                obj.status = 2
+                obj.return_data = {'result': True, 'data': res}
+                obj.finish_time = timezone.now()
+                obj.save()
         return res
 
     wrapper.delay = delay

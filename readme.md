@@ -335,6 +335,24 @@ def your_async_func():
 
 ```
 
+### 任务状态跟踪、执行结果记录
+
+`corelib.asynctask.api`提供一张表，与一组action接口，可将任务执行过程与结果记录到数据库中，并可通过固有API来做查询。
+
+要启用此功能，需要将`corelib.asynctask.api`注册到django settings中的`INSTALLED_APPS`中，以及全局urls.py中。
+
+然后，`asynctask`装饰器通过`tracking`参数来启用记录功能。
+
+```python
+
+@asynctask(tracking=True)
+def your_async_func():
+    ...
+
+```
+
+若是第一次添加，别忘了执行数据库的`migrate`。
+
 ## cron定时任务
 
 <稍后补充>
