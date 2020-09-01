@@ -309,7 +309,7 @@ delay()方法支持固有参数delaytime，用于名副其实的延迟调用。
 ```python
 
         ...
-        err = test_task.delay(task_id=task_id, delaytime=10)  # 表示10秒后在执行异步任务。
+        err = test_task.delay(task_id=task_id, delaytime=10)  # 表示10秒后再执行异步任务。
         ...
 
 ```
@@ -321,7 +321,7 @@ from django.utils import timezone
         ...
         run_at = <some_future_datetime_object>
         delaytime = int(run_at.timestamp() -  timezone.now().timestamp())
-        err = test_task.delay(task_id=task_id, delaytime=delaytime)  # 表示10秒后在执行异步任务。
+        err = test_task.delay(task_id=task_id, delaytime=delaytime)
         ...
 
 ```
