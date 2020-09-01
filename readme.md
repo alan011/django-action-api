@@ -328,7 +328,7 @@ from django.utils import timezone
 如果需要固定的delay时间，还可以这样设置
 
 ```python
-@asynctask(delaytime=10)  # 在编码阶段事业之默认延迟10秒（而不是调用时才设置）。
+@asynctask(delaytime=10)  # 设置默认延迟10秒（而不是调用时才指定）。
 def your_async_func():
     ...
 
