@@ -6,20 +6,21 @@ from tornado.platform.asyncio import AnyThreadEventLoopPolicy
 import asyncio
 
 
-def asynctask(func=None, delaytime=0, tracking=False, name=None):
+def asynctask(func=None, tracking=False, delaytime=0, name=None):
     """
     A decorator to register a function as an Async Task with optional parameters.
 
-    :delaytime  Seconds how long a task passed to AsyncTaskServer will delay to run.
     :tracking   If True, to record task running status and function returns in database, for some reason like task-reviewing purpose.
                 Or Just run task without any database record if False.
+    :delaytime  Seconds how long a task passed to AsyncTaskServer will delay to run.
     :name       A readable name for this task function. If not specified, `func.__name__` will be used.
                 Only useful if `tracking` is True.
     """
     if func is None:
-        return partial(asynctask, delaytime=delaytime, tracking=tracking, name=name)
+        return partial(asynctask, tracking=tracking, delaytime=delaytime, name=name)
 
     def delay(*args, **kwargs):
+        delaytime = kwargs.get('delaytime', 0)
         client = AsyncClient()
         err = 'UUID_EXIST'
         while err == 'UUID_EXIST':
@@ -31,7 +32,7 @@ def asynctask(func=None, delaytime=0, tracking=False, name=None):
             err = client.record(uuid, name=_name)
             if err is not None and err != 'UUID_EXIST':
                 return err
-        main = partial(client.go, uuid, func.__name__, func.__module__, tracking, *args, **kwargs)
+        main = partial(client.go, uuid, func.__name__, func.__module__, tracking, delaytime, * args, **kwargs)
         asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())  # To make ioloop runnable in any thread within Django.
         try:
             ioloop.IOLoop.current().run_sync(main)

@@ -55,14 +55,18 @@ class AsyncServer(tcpserver.TCPServer):
         # To prepare the real work data.
         if result == 'OK':
             self.logger.log(f"Now to prepare to run the blocking task.", level='DEBUG')
-            uuid, name, module, tracking = data['uuid'], data['name'], data['module'], data['tracking']
+            uuid, name, module = data['uuid'], data['name'], data['module']
+            tracking, delaytime = data['tracking'], data['delaytime']
             args, kwargs = data['args'], data['kwargs']
 
             index = f"{module}.{name}"
             func = self.funcs[index]
 
             # Delays.
-            if func.delaytime > 0:  # Task delay.
+            if isinstance(delaytime, int) and delaytime > 0:
+                self.logger.log(f"Task '{uuid}' delayed in {delaytime} seconds.")
+                await gen.sleep(func.delaytime)
+            elif func.delaytime > 0:  # Task delay.
                 self.logger.log(f"Task '{uuid}' delayed in {func.delaytime} seconds.")
                 await gen.sleep(func.delaytime)
 

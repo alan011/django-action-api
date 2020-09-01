@@ -229,20 +229,121 @@ urlpatterns = [
 
 如果出现了系统级别的错误，则会返回一个字符串，status_code将为4xx或5xx（可自定义）。
 
-## 更多示例
+## 异步任务
 
-* 异步代码
+由于django是个同步框架，无法直接在view函数中实现异步逻辑，仍然需要借助一个独立进程来跑异步任务。
+
+Action API异步模块提供一个独立运行的异步服务，通RPC调用来执行异步任务。
+
+异步模块，主要用于执行一些耗时长的阻塞任务，在tornado的ioloop中，将放到线程类executor中执行。
+
+异步模块: `corelib.asynctask`
+异步服务程序：`corelib/asynctask/bin/asynctask_server`
+
+* 一个简单示例
+
+异步代码结构要求：
+
+```script
+some_django_app/
+    api.py
+    asynctask.py  # 异步任务模块，模块名称（文件名前缀），可以通过配置项`ASYNCTASK_REGISTER_MODULE`在settings中设定
+    handlers.py
+    models.py
+    urls.py
+```
+
+一个没啥用的异步任务，仅用做示例:
+
+```python
+from corelib.asynctask.asynclib.decorators import asynctask
+from corelib.tools.logger import Logger
+import time
+
+@asynctask  # 注册为一个异步任务，异步服务启动时，将以此为基准来自动注册RPC调用函数
+def test_task(task_id):
+    logger = Logger(trigger_level='INFO', msg_prefix='[asynctask] test_task: ')  # 一个简易的日志工具
+    logger.log('start...')
+    time.sleep(5)  # 运行一个阻塞任务
+    print(task_id)
+    logger.log('end!')
+
+```
+
+在handler中执行异步任务
+
+```python
+from .asynctask import test_task
+
+class AsyncAPIHandler(APIHandlerBase):
+    post_fields = {'task_id': IntType(min=0)}
+
+    @pre_handler(req=['task_id'])
+    def asyncAction(self):
+        task_id = self.checked_params['task_id']  # 校验之后的参数，将被填充到self.checked_params字典中。
+        err = test_task.delay(task_id=task_id)  # delay方法将发起RPC调用，故，只能传可序列化的参数。
+        if err is not None:
+            return self.error(err)  # 表示启动异步任务出错，self.error()方法自动设置处理结果为错误，status_code默认为400
+        self.message = '异步任务已启动'
+
+```
+
+启动异步服务
+
+```script
+
+cd /path/to/your_django_project/
+
+python3 corelib/asynctask/bin/asynctask_server project_setting_diretory
+
+# 启动过程中，异步服务会自动注册asynctask中定义的异步任务处理函数。
+```
+
+* 延迟调用
+
+delay()方法支持固有参数delaytime，用于名副其实的延迟调用。
+
+延迟sleep在异步模块中执行，delay()方法本身不阻塞。
+
+```python
+
+        ...
+        err = test_task.delay(task_id=task_id, delaytime=10)  # 表示10秒后在执行异步任务。
+        ...
+
+```
+
+可以用此方法，来执行一些一次性的定时任务。
+
+```python
+from django.utils import timezone
+        ...
+        run_at = <some_future_datetime_object>
+        delaytime = int(run_at.timestamp() -  timezone.now().timestamp())
+        err = test_task.delay(task_id=task_id, delaytime=delaytime)  # 表示10秒后在执行异步任务。
+        ...
+
+```
+
+如果需要固定的delay时间，还可以这样设置
+
+```python
+@asynctask(delaytime=10)  # 在编码阶段事业之默认延迟10秒（而不是调用时才设置）。
+def your_async_func():
+    ...
+
+```
+
+## cron定时任务
 
 <稍后补充>
+
+## 更多示例
 
 * 权限检查
 
 <稍后补充>
 
 * 操作记录
-
-<稍后补充>
-
-* cron定时任务
 
 <稍后补充>

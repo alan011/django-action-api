@@ -45,7 +45,7 @@ class AsyncClient(object):
 
         return (HEADER_PREFIX + header_value + msg).encode('utf-8'), None
 
-    async def go(self, uuid, name, module, tracking, *args, **kwargs):
+    async def go(self, uuid, name, module, tracking=False, delaytime=0, *args, **kwargs):
         """
         To send serialized func data to AsyncTaskServer.
 
@@ -65,6 +65,7 @@ class AsyncClient(object):
             'name': name,
             'module': module,
             'tracking': tracking,
+            'delaytime': delaytime,
             'args': args,
             'kwargs': kwargs
         }
