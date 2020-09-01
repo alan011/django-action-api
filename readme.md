@@ -238,6 +238,7 @@ Action API异步模块提供一个独立运行的异步服务，通RPC调用来�
 异步模块，主要用于执行一些耗时长的阻塞任务，在tornado的ioloop中，将放到线程类executor中执行。
 
 异步模块: `corelib.asynctask`
+
 异步服务程序：`corelib/asynctask/bin/asynctask_server`
 
 * 一个简单示例
