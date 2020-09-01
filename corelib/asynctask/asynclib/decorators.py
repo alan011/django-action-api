@@ -4,7 +4,7 @@ from corelib.tools.func_tools import genUUID
 from tornado import ioloop
 from tornado.platform.asyncio import AnyThreadEventLoopPolicy
 from django.conf import settings
-from djang.utils import timezone
+from django.utils import timezone
 import asyncio
 
 
