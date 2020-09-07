@@ -37,7 +37,7 @@ def asynctask(func=None, tracking=False, delaytime=0, name=None):
         if tracking:
             kwargs['__async_task_uuid__'] = uuid
             kwargs['__async_func_name__'] = func.__name__
-        main = partial(client.go, uuid, func.__name__, func.__module__, tracking, delaytime, * args, **kwargs)
+        main = partial(client.go, uuid, func.__name__, func.__module__, tracking, delaytime, *args, **kwargs)
         asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())  # To make ioloop runnable in any thread within Django.
         try:
             ioloop.IOLoop.current().run_sync(main)

@@ -17,6 +17,7 @@ import json
 from django.conf import settings
 from importlib import import_module
 from tornado import gen, ioloop, tcpserver, iostream
+from functools import partial
 
 
 class AsyncServer(tcpserver.TCPServer):
@@ -72,7 +73,8 @@ class AsyncServer(tcpserver.TCPServer):
 
             # To run the real blocking work in IOLoop.
             self.logger.log(f"Task '{uuid}' start to run: func={index}, tracking={tracking}, args={args}, kwargs={kwargs}")
-            await ioloop.IOLoop.current().run_in_executor(None, func, *args, **kwargs)
+            func = partial(func, **kwargs)
+            await ioloop.IOLoop.current().run_in_executor(None, func, *args)
             self.logger.log(f"Task '{uuid}' complete.")
 
 
