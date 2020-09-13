@@ -1,5 +1,5 @@
 from django.db.models import Q
-from corelib.config import DEFAULT_PAGE_LENGTH
+from .defaults import DEFAULT_PAGE_LENGTH
 from .get_data_common import BaseSerializingMixin
 
 
@@ -23,7 +23,7 @@ class ListDataMixin(BaseSerializingMixin):
     分页约定：
     1、post数据中需包含'page_index'，表示当前页码
     2、post数据中可以包含'page_length'字段，表示单页的数据条数
-    3、若不指定'page_length'，默认长度为`corelib.config.DEFAULT_PAGE_LENGTH`
+    3、若不指定'page_length'，默认长度为`DEFAULT_PAGE_LENGTH`
     4、数据总条数存储在`data_total_length`属性中
 
     搜索约定：
@@ -72,9 +72,8 @@ class ListDataMixin(BaseSerializingMixin):
             queryset = queryset.filter(self._makeSearchFilter(search_fields, search_value))
 
         # 执行额外的条件过滤
-        if additional_filters is not None:
-            for k, v in additional_filters:
-                queryset = queryset.filter(**{k: v})
+        if isinstance(additional_filters, dict):
+            queryset = queryset.filter(**additional_filters)
 
         # 排除过滤
         if excludes is not None:

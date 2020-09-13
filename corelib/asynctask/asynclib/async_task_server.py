@@ -7,13 +7,8 @@ from .defaults import (
     ASYNCTASK_LOG_LEVEL
 )
 
-# from multiprocessing import Pool
 from .async_task_client import HEADER_LENTGH
-# import socket
-# import os
-# import time
 import json
-# import functools
 from django.conf import settings
 from importlib import import_module
 from tornado import gen, ioloop, tcpserver, iostream
@@ -30,7 +25,7 @@ class AsyncServer(tcpserver.TCPServer):
     async def handle_stream(self, stream, address):
         self.logger.msg_prefix = 'AsyncServer.handle_stream(): '
 
-        # read client data.
+        # handle TCP connetion.
         while True:
             try:
                 self.logger.log("To receive data from clients...", level='DEBUG')
@@ -53,7 +48,7 @@ class AsyncServer(tcpserver.TCPServer):
                 result = 'ERROR'
                 break
 
-        # To prepare the real work data.
+        # To do the real work.
         if result == 'OK':
             self.logger.log(f"Now to prepare to run the blocking task.", level='DEBUG')
             uuid, name, module = data['uuid'], data['name'], data['module']

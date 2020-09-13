@@ -1,13 +1,13 @@
 from corelib import APIHandlerBase, pre_handler, ObjectType, ChoiceType, StrType, IntType
 from corelib.permission.models import APIPermission
-from corelib import config
+from .defaults import PERMISSION_GROUPS
 
 
 class PermissionGet(APIHandlerBase):
     fields_defination = {
         "id": ObjectType(APIPermission),
         "search": StrType(),
-        "perm_group": ChoiceType(*config.PERMISSION_GROUPS.keys(), allow_empty=True),
+        "perm_group": ChoiceType(*PERMISSION_GROUPS.keys(), allow_empty=True),
         "data_index": IntType(min=1),
         "data_length": IntType(min=0),
     }
@@ -22,7 +22,7 @@ class PermissionGet(APIHandlerBase):
 
     @pre_handler(perm='admin')
     def getPermGroups(self):
-        self.data = list(config.PERMISSION_GROUPS.keys())
+        self.data = list(PERMISSION_GROUPS.keys())
 
     def getMyPerm(self):
         user = self.request.user
@@ -32,7 +32,7 @@ class PermissionGet(APIHandlerBase):
 class PermissionSet(APIHandlerBase):
     fields_defination = {
         "id": ObjectType(APIPermission),
-        "perm_group": ChoiceType(*config.PERMISSION_GROUPS.keys()),
+        "perm_group": ChoiceType(*PERMISSION_GROUPS.keys()),
     }
     @pre_handler(req=["id", "perm_group"], perm='admin', record=True)
     def setUserPerm(self):

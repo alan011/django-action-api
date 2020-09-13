@@ -21,13 +21,24 @@ class APIHandlerBase(object):
         self.http_status = 200
         self.data = None
 
-    def error(self, error_message, http_status=400, return_value=None):
+    def error(self, error_message, http_status=400, return_value=None, log=True):
         """
         当处理失败时，设置error的便捷方法
         """
         self.result = False
         self.error_message += error_message
         self.http_status = http_status
+        if log:
+            print(self.error_message)
+            err_log = {
+                'action': self.action,
+                'request_params': self.params,
+                'error_message': self.error_message,
+                'result': self.result,
+                'status_code': self.http_status,
+                'data': self.data
+            }
+            print(err_log)
         return return_value
 
     def setResult(self, *handlers, data=None):

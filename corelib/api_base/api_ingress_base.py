@@ -2,7 +2,8 @@ from django.views.generic import View
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from corelib import APIAuth, config
+from corelib import APIAuth
+from .defaults import ACTION_AUTH_REQUIRED, ACTIONS_AUTH_BY_PASS
 
 import json
 
@@ -24,17 +25,25 @@ class APIIngressBase(View):
         if action not in self.actions:
             return HttpResponse(f"ERROR: illegal action: '{action}'", status=400)
 
+        # To get action func
+        handler = self.actions[action](parameters=data, request=request)
+        action_func = getattr(handler, action, lambda: HttpResponse("ERROR: method not accomplished by handler.", status=500))
+
         # authentication
         auth_token = data.get('auth_token')
-        if action not in config.NO_AUTH_ACTIONS and config.AUTH_REQUIRED:
+        if action not in ACTIONS_AUTH_BY_PASS and ACTION_AUTH_REQUIRED:
             auth = APIAuth()
-            auth_result = auth.auth_by_token(auth_token) if auth_token else auth.auth_by_session(request.user)
+            if auth_token:
+                if action_func._is_pravite:
+                    return HttpResponse(f"ERROR: Private action '{action}' cannot authenticated by auth_token.", status=400)
+                auth_result = auth.auth_by_token(auth_token)
+            else:
+                auth.auth_by_session(request.user)
             if not auth_result:
                 return HttpResponse("ERROR: API authentication failed", status=401)
 
-        # dispatch by action
-        handler = self.actions[action](parameters=data, request=request)
-        getattr(handler, action, lambda: HttpResponse("ERROR: method not accomplished by handler.", status=500))()
+        # To do the works.
+        action_func()
 
         # make HttpResponse
         if handler.result:

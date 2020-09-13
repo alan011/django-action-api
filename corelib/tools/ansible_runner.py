@@ -1,5 +1,6 @@
 import os
 import json
+from django.conf import settings
 
 
 class CmdJob(object):
@@ -16,6 +17,7 @@ class AnsibleRunner(object):
         self.key = ansible_key
         self.jobs = []
         self.timeout = timeout
+        self.port = 22 if getattr(settings, 'ANSIBLE_SSH_PORT', None) is None else settings.ANSIBLE_SSH_PORT
 
     def add_job(self, task_name, playbook, hosts, vars=None, single_file_playbook=False):
         if single_file_playbook:
@@ -33,9 +35,15 @@ class AnsibleRunner(object):
         if not _hosts:
             return "ERROR: Empty target hosts for ansible to run."
         if vars:
-            job = CmdJob(f"{self.bin} -i {_hosts}, -e \'{_vars}\' {_playbook} --private-key={self.key} -T {self.timeout}", task_name=task_name)
+            job = CmdJob(
+                f"{self.bin} -i {_hosts}, -e \'{_vars}\' {_playbook} --private-key={self.key} -T {self.timeout} --ssh-extra-args \'-p {self.port}\'",
+                task_name=task_name
+            )
         else:
-            job = CmdJob(f"{self.bin} -i {_hosts}, {_playbook} --private-key={self.key} -T {self.timeout}", task_name=task_name)
+            job = CmdJob(
+                f"{self.bin} -i {_hosts}, {_playbook} --private-key={self.key} -T {self.timeout} --ssh-extra-args \'-p {self.port}\'",
+                task_name=task_name
+            )
         self.jobs.append(job)
 
     def ansible_result_parser(self, job, lines):
@@ -68,7 +76,7 @@ class AnsibleRunner(object):
                 # print(task_result)
                 for host_ip in task_result['hosts'].keys():
                     job.result[host_ip] = {"result": "success", "log_lines": []}
-                    if task_result["hosts"][host_ip].get('failed'):  # Tag failed.
+                    if task_result["hosts"][host_ip].get('failed') or task_result["hosts"][host_ip].get('unreachable'):  # Tag failed.
                         job.result[host_ip]["result"] = 'failed'
                     _stdout = task_result["hosts"][host_ip].get("stdout_lines", [])
                     _stderr = task_result["hosts"][host_ip].get("stderr_lines", [])

@@ -5,6 +5,7 @@ from tornado import ioloop
 from tornado.platform.asyncio import AnyThreadEventLoopPolicy
 from django.conf import settings
 from django.utils import timezone
+from django.db import connections
 import asyncio
 
 
@@ -80,6 +81,10 @@ def asynctask(func=None, tracking=False, delaytime=0, name=None):
                 obj.status = 2
                 obj.finish_time = timezone.now()
                 obj.save()
+
+            # To close db connections the way like handling django request_finished.
+            for conn in connections.all():
+                conn.close_if_unusable_or_obsolete()
 
         return res
 

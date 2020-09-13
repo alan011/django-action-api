@@ -1,4 +1,5 @@
 from django.conf import settings
+from .defaults import ACTION_STATIC_TOKENS
 import re
 
 
@@ -6,12 +7,8 @@ class APIAuth(object):
     def auth_by_token(self, auth_token):
         # To check configuration for token_manager.
         if 'corelib.token_manager' not in settings.INSTALLED_APPS:
-            # If `token_manager` is not used, user can use FIXED_TOKENS to simply authenticating API requests.
-            try:
-                from corelib.config import FIXED_TOKENS
-            except Exception:
-                return False
-            if auth_token in FIXED_TOKENS:
+            # If `token_manager` is not used, user can use STATIC_TOKEN to simply authenticating API requests.
+            if auth_token in ACTION_STATIC_TOKENS:
                 return True
             return False
         # Plugably import.

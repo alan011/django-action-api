@@ -24,5 +24,5 @@ class ModifyDataMixin(object):
                 _msg = f"Failed to modify data with '{identifier}={self.params[identifier]}'. {str(e)}" if error_msg is None else error_msg
                 return self.error(_msg, return_value=False)
 
-        self.message = f"To modify data with '{identifier}={self.params[identifier]}' succeeded." if success_msg is None else error_msg
+        self.message = f"To modify data with '{identifier}={self.params[identifier]}' succeeded." if success_msg is None else success_msg
         return changed

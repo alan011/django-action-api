@@ -1,6 +1,5 @@
 from django.db import models
 from django.contrib.auth.models import User
-from corelib import config
 
 
 class APIPermission(models.Model):
@@ -11,7 +10,7 @@ class APIPermission(models.Model):
     # db fields.
     id = models.AutoField('ID', primary_key=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="api_perm")
-    perm_group = models.CharField("权限属组", choices=config.PERMISSION_GROUPS.items(), max_length=16, default=0)
+    perm_group = models.CharField("权限属组", max_length=64, default='')
 
     # serializing settings.
     list_fields = ["id", "user.username", "perm_group"]

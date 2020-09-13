@@ -67,3 +67,28 @@ def groupArray(array, num):
             tmp = []
             count = 0
     yield tmp
+
+
+def get_dict_item_from_list(target_list, filter):
+    """
+    参数说明：
+        target_list: 需满足以下结构，例如：
+            [
+                {'id': 1, 'name': 'lalal', ...},
+                {'id': 2, 'name': 'lalalaa', ...},
+            ]
+
+        filter: 条件过滤字典，比如：
+            {
+                'name': 'lalal'
+            }
+
+    返回第一个匹配到的元素。
+    """
+    for item in target_list:
+        matched = 0
+        for k, v in filter.items():
+            if k in item and item[k] == v:
+                matched += 1
+        if matched == len(filter):
+            return item
