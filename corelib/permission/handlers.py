@@ -1,46 +1,42 @@
 from corelib import APIHandlerBase, pre_handler, ObjectType, ChoiceType, StrType, IntType
-from corelib.permission.models import APIPermission
+from corelib.api_data_serializing_mixins.get_list_data_mixin import ListDataMixin
+from corelib.api_data_serializing_mixins.get_detail_data_mixin import DetailDataMixin
+from corelib.api_data_serializing_mixins.modify_data_mixin import ModifyDataMixin
 from .defaults import PERMISSION_GROUPS
+from .tools import get_model
 
 
-class PermissionGet(APIHandlerBase):
-    fields_defination = {
-        "id": ObjectType(APIPermission),
+class PermissionGet(APIHandlerBase, ListDataMixin, DetailDataMixin):
+    post_fields = {
+        "id": ObjectType(get_model()),
         "search": StrType(),
         "perm_group": ChoiceType(*PERMISSION_GROUPS.keys(), allow_empty=True),
-        "data_index": IntType(min=1),
-        "data_length": IntType(min=0),
+        "page_index": IntType(min=1),
+        "page_length": IntType(min=0),
     }
 
-    @pre_handler(opt=["search", "perm_group", "data_index", "data_length"], perm='admin')
+    @pre_handler(opt=["search", "perm_group", "page_index", "page_length"], perm='admin')
     def getUserList(self):
-        self.baseGetList(model=APIPermission)
+        self.getList(model=get_model())
 
     @pre_handler(req=['id'], perm='admin')
     def getUserDetail(self):
-        self.baseGetDetail(model=APIPermission)
+        self.getDetail(model=get_model())
 
     @pre_handler(perm='admin')
     def getPermGroups(self):
         self.data = list(PERMISSION_GROUPS.keys())
 
+    @pre_handler(perm='normal')
     def getMyPerm(self):
-        user = self.request.user
-        self.data = {"perm_group": user.api_perm.perm_group, "username": user.username}
+        self.data = {"perm_group": self.user_perm.perm_group, "username": self.user_perm.user.username}
 
 
-class PermissionSet(APIHandlerBase):
-    fields_defination = {
-        "id": ObjectType(APIPermission),
+class PermissionSet(APIHandlerBase, ModifyDataMixin):
+    post_fields = {
+        "id": ObjectType(get_model()),
         "perm_group": ChoiceType(*PERMISSION_GROUPS.keys()),
     }
     @pre_handler(req=["id", "perm_group"], perm='admin', record=True)
     def setUserPerm(self):
-        obj = self.checked_params['id']
-        perm_group = self.checked_params['perm_group']
-
-        self.message = "No change."
-        if perm_group != obj.perm_group:
-            obj.perm_group = perm_group
-            obj.save()
-            self.message = f"To set '{perm_group}' permission for user '{obj.user.username}' succeeded."
+        self.modifyData()

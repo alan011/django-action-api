@@ -1,5 +1,4 @@
 from functools import wraps
-from django.conf import settings
 
 
 def recorder():
@@ -11,8 +10,6 @@ def recorder():
     def decorator(func):
         @wraps(func)
         def recording(self, *args, **kwargs):
-            if "corelib.recorder" not in settings.INSTALLED_APPS:
-                return self.error("ERROR: Action API's 'recorder' is not set into django's INSTALLED_APPS.", http_status=500)
             from corelib.recorder.models import APICallingRecord
             # To record this call.
             record_data = {

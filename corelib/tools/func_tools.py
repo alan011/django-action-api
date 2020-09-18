@@ -69,10 +69,10 @@ def groupArray(array, num):
     yield tmp
 
 
-def get_dict_item_from_list(target_list, filter):
+def get_item_from_table_list(target_list, filter):
     """
     参数说明：
-        target_list: 需满足以下结构，例如：
+        target_list: 为一个table list, 需满足以下结构，例如：
             [
                 {'id': 1, 'name': 'lalal', ...},
                 {'id': 2, 'name': 'lalalaa', ...},
@@ -92,3 +92,22 @@ def get_dict_item_from_list(target_list, filter):
                 matched += 1
         if matched == len(filter):
             return item
+
+
+def merge_table_list(*target_lists, identified_by='id', order=True, order_by='id'):
+    identities = set()
+    result = []
+    for table in target_lists:
+        for item in table:
+            if not isinstance(item, dict):
+                return None, "ERROR: Invalid table list found. Item of a table list be all dict."
+            identity = item.get(identified_by, None)
+            if identity is None:
+                return None, f"ERROR: Invalid row identifier '{identified_by}' found for table list row."
+            if identity not in identities:
+                identities.add(identity)
+                result.append(item)
+    reverse = True if order_by.startswith('-') else False
+    tableSort(result, 'id', reverse=reverse)
+
+    return result, None

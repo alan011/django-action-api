@@ -17,8 +17,8 @@ class DetailDataMixin(BaseSerializingMixin):
         可通过设置`self.date_format`, `self.time_format`, `self.datetime_format`属性来自定义
     """
 
-    def getDetail(self, model, identifier='id', excluded_fields=None):
-        obj = self.checked_params[identifier]
+    def getDetail(self, model, identifier='id', obj=None, excluded_fields=None):
+        obj = self.checked_params[identifier] if obj is None else obj
         self.data = {}
         detail_fields = getattr(model, 'detail_fields', None)
         if detail_fields is None:

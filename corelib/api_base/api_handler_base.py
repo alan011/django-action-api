@@ -15,6 +15,7 @@ class APIHandlerBase(object):
         self.set_parameters_directly = set_parameters_directly
 
         # 处理结果
+        self.user_perm = None
         self.result = True
         self.message = ''
         self.error_message = ''

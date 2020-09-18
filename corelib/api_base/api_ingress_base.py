@@ -17,9 +17,10 @@ class APIIngressBase(View):
         data = self.json_load(self.request)
         if isinstance(data, HttpResponse):
             return data
+        action = data.get('action')
+        auth_token = data.get('auth_token')
 
         # validate 'action'
-        action = data.get('action')
         if not action:
             return HttpResponse("ERROR: 'action' field is required.", status=400)
         if action not in self.actions:
@@ -30,15 +31,14 @@ class APIIngressBase(View):
         action_func = getattr(handler, action, lambda: HttpResponse("ERROR: method not accomplished by handler.", status=500))
 
         # authentication
-        auth_token = data.get('auth_token')
         if action not in ACTIONS_AUTH_BY_PASS and ACTION_AUTH_REQUIRED:
             auth = APIAuth()
             if auth_token:
-                if action_func._is_pravite:
+                if action_func._is_private:
                     return HttpResponse(f"ERROR: Private action '{action}' cannot authenticated by auth_token.", status=400)
                 auth_result = auth.auth_by_token(auth_token)
             else:
-                auth.auth_by_session(request.user)
+                auth_result = auth.auth_by_session(request.user)
             if not auth_result:
                 return HttpResponse("ERROR: API authentication failed", status=401)
 

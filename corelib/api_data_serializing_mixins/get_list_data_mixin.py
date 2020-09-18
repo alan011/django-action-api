@@ -56,11 +56,20 @@ class ListDataMixin(BaseSerializingMixin):
         page_length = self.checked_params['page_length'] if self.checked_params.get('page_length') else DEFAULT_PAGE_LENGTH
         return queryset[(page_index - 1) * page_length: page_index * page_length]
 
-    def getQueryset(self, model, filters=None, search_value=None, search_fields=None, order_by=None, excludes=None, additional_filters=None):
+    def getQueryset(
+            self,
+            model,
+            spec_qs=None,
+            filters=None,
+            search_value=None,
+            search_fields=None,
+            order_by=None,
+            excludes=None,
+            additional_filters=None):
         """
         执行过滤，搜索，返回一个真实queryset
         """
-        queryset = model.objects.all()
+        queryset = model.objects.all() if spec_qs is None else spec_qs
 
         # 先按filter精确过滤
         if filters:
@@ -119,7 +128,7 @@ class ListDataMixin(BaseSerializingMixin):
             list_data.append(raw)
         return list_data
 
-    def getList(self, model, order_by=None, excludes=None, additional_filters=None):
+    def getList(self, model, spec_qs=None, order_by=None, excludes=None, additional_filters=None):
         if self.checked_params is None:
             self.checked_params = {}
         search = {
@@ -128,7 +137,8 @@ class ListDataMixin(BaseSerializingMixin):
             'filters': {f: self.checked_params[f] for f in getattr(model, 'filter_fields', []) if self.checked_params.get(f) is not None},
             'order_by': order_by,
             'excludes': excludes,
-            'additional_filters': additional_filters
+            'additional_filters': additional_filters,
+            'spec_qs': spec_qs,
         }
         queryset = self.getQueryset(model, **search)
         if not queryset.exists():
@@ -137,3 +147,4 @@ class ListDataMixin(BaseSerializingMixin):
             if "page_index" in self.checked_params:
                 queryset = self.pagination(queryset)
             self.data = self.makeListData(queryset, model)
+        return self.data

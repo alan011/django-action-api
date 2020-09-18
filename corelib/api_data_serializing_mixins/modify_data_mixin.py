@@ -6,7 +6,7 @@ class ModifyDataMixin(object):
     作为核心功能的扩展，必须和核心类`APIHandlerBase`一起使用。
     """
 
-    def modifyData(self, identifier='id', obj=None, success_msg=None, error_msg=None):
+    def modifyData(self, identifier='id', obj=None, success_msg=None, error_msg=None, update_fields=None):
         if obj is None:
             obj = self.checked_params.pop(identifier)
         changed = False
@@ -19,7 +19,7 @@ class ModifyDataMixin(object):
             changed = True
         if changed:
             try:
-                obj.save()
+                obj.save(update_fields=update_fields)
             except Exception as e:
                 _msg = f"Failed to modify data with '{identifier}={self.params[identifier]}'. {str(e)}" if error_msg is None else error_msg
                 return self.error(_msg, return_value=False)
