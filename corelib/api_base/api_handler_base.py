@@ -14,6 +14,9 @@ class APIHandlerBase(object):
         # 将handler作为工具使用，而不是被`apiIngress`调用时，可以设置此参数，绕过数据校验逻辑
         self.set_parameters_directly = set_parameters_directly
 
+        # 是否绕过pre_handler中的权限检查
+        self.by_pass_perm_check = False
+
         # 处理结果
         self.user_perm = None
         self.result = True

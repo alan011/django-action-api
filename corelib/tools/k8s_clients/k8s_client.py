@@ -21,6 +21,7 @@ class K8SClient(object):
         self.url_dp_create = f"{k8s_api_url_base}/apis/apps/v1/namespaces/{namespace}/deployments"
         self.url_dp_object = f"{k8s_api_url_base}/apis/apps/v1/namespaces/{namespace}/deployments/{name}"
         self.url_dp_status = f"{k8s_api_url_base}/apis/apps/v1/namespaces/{namespace}/deployments/{name}/status"
+        self.last_generation = None
 
     def get_deployment(self, check_existence=False):
         res = requests.get(url=self.url_dp_object, headers=self.header_base, verify=False)
@@ -39,7 +40,11 @@ class K8SClient(object):
         # print(f"get_deployment_status(): K8S API Response status text: {res.text}")
         if res.status_code != 200:
             raise Exception(f"ERROR: Failed to get deployment status of '{self.deployment_name}'. K8S API returns status Code: {res.status_code}")
-        return res.json()
+        data = res.json()
+        if 'metadata' in data:
+            if 'managedFields' in data['metadata']:
+                data['metadata'].pop('managedFields')
+        return data
 
     def apply_deployment(self, deployment):
         # 检查deployment数据
@@ -95,6 +100,10 @@ class K8SClient(object):
                             'image': 该容器需更新的目标镜像
             strategy    更新策略。
         """
+        # get generation.
+        obj_data = self.get_deployment()
+        self.last_generation = obj_data['metadata'].get('generation', 0)
+
         # set containers
         _containers = []
         for c in containers:
@@ -130,9 +139,12 @@ class K8SClient(object):
             raise Exception(f"ERROR: set_image failed. API returns status code: {res.status_code}")
 
     def get_updating_progress(self):
+        if self.last_generation is None:
+            raise Exception("`self.last_generation` is not set as expected!")
         status = self.get_deployment_status()
-        replicas = int(status['spec']['replicas'])
-        updated = int(status['status']['updatedReplicas'])
+        this_generation = int(status['status'].get('observedGeneration', 0))
+        replicas = int(status['spec'].get('replicas', 0))
+        updated = int(status['status'].get('updatedReplicas', 0)) if this_generation > self.last_generation else 0
         return updated, replicas
 
     def delete_deployment(self):

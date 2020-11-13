@@ -24,6 +24,33 @@ def tableSort(table_data, *columns, reverse=False):
         table_data.sort(key=lambda d: d[k], reverse=reverse)
 
 
+def tableIndexOf(table_data, get_first_match=True, **row_filter):
+    """
+    row_filter:     a dict to match table row data.
+
+    returns:
+         Return a list, which item is the index number of matched row, if `get_first_match` is False.
+         Or just a number of the first mateched row's index.
+         None if no row matched.
+
+    """
+    matched_indexes = []
+    for i in range(len(table_data)):
+        row = table_data[i]
+        field_match_count = 0
+        for k, v in row_filter.items():
+            if k in row and row[k] == v:
+                field_match_count += 1
+        if field_match_count == len(row_filter):
+            matched_indexes.append(i)
+    if not matched_indexes:
+        return None
+    if get_first_match:
+        return matched_indexes[0]
+    else:
+        return matched_indexes
+
+
 def getattrRecursively(obj, attr, default=None):
     first, *attrs = attr.split('.')
     remain = '.'.join(attrs)

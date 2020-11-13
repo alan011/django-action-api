@@ -8,6 +8,11 @@ from .defaults import ACTION_AUTH_REQUIRED, ACTIONS_AUTH_BY_PASS
 import json
 
 
+def get_error(msg, status_code=400):
+    print(msg)
+    return HttpResponse(msg, status=status_code)
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 class APIIngressBase(View):
     actions = {}
@@ -22,25 +27,27 @@ class APIIngressBase(View):
 
         # validate 'action'
         if not action:
-            return HttpResponse("ERROR: 'action' field is required.", status=400)
+            return get_error("ERROR: 'action' field is required.")
         if action not in self.actions:
-            return HttpResponse(f"ERROR: illegal action: '{action}'", status=400)
+            return get_error(f"ERROR: illegal action: '{action}'")
 
         # To get action func
         handler = self.actions[action](parameters=data, request=request)
-        action_func = getattr(handler, action, lambda: HttpResponse("ERROR: method not accomplished by handler.", status=500))
+        action_func = getattr(handler, action, None)
+        if action_func is None:
+            return get_error("ERROR: method not accomplished by handler.", 500)
 
         # authentication
         if action not in ACTIONS_AUTH_BY_PASS and ACTION_AUTH_REQUIRED:
             auth = APIAuth()
             if auth_token:
                 if action_func._is_private:
-                    return HttpResponse(f"ERROR: Private action '{action}' cannot authenticated by auth_token.", status=400)
+                    return get_error(f"ERROR: Private action '{action}' cannot authenticated by auth_token.")
                 auth_result = auth.auth_by_token(auth_token)
             else:
                 auth_result = auth.auth_by_session(request.user)
             if not auth_result:
-                return HttpResponse("ERROR: API authentication failed", status=401)
+                return get_error("ERROR: API authentication failed", 401)
 
         # To do the works.
         action_func()
@@ -58,7 +65,7 @@ class APIIngressBase(View):
         return HttpResponse(json.dumps(response_data), content_type='application/json', status=handler.http_status)
 
     def get(self, request, *args, **kwargs):
-        return HttpResponse("GET method is not allowed.", status=403)
+        return get_error("GET method is not allowed.", 403)
 
     def json_load(self, request, decode_type='utf-8'):
         """
@@ -70,9 +77,9 @@ class APIIngressBase(View):
         try:
             post_data = json.loads(request.body.decode(decode_type))
         except Exception:
-            return HttpResponse("ERROR: To load json data failed.", status=400)
+            return get_error("ERROR: To load json data failed.")
 
         if isinstance(post_data, dict):
             return post_data
         else:
-            return HttpResponse("ERROR: Post data is not a dict.", status=400)
+            return get_error("ERROR: Post data is not a dict.", 400)

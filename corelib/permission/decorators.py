@@ -20,7 +20,7 @@ def permissionChecker(perm=None):
     def decorator(func):
         @wraps(func)
         def checker(self, *args, **kwargs):
-            if perm is not None:
+            if perm is not None and not self.by_pass_perm_check:
                 # To get permission model.
                 model = get_model()
                 if not model:

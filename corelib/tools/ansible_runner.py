@@ -11,13 +11,14 @@ class CmdJob(object):
 
 
 class AnsibleRunner(object):
-    def __init__(self, ansible_root, ansible_bin, ansible_key, timeout=60):
+    def __init__(self, ansible_root, ansible_bin, ansible_key, timeout=60, quiet=False):
         self.ansible_root = ansible_root
         self.bin = ansible_bin
         self.key = ansible_key
         self.jobs = []
         self.timeout = timeout
         self.port = 22 if getattr(settings, 'ANSIBLE_SSH_PORT', None) is None else settings.ANSIBLE_SSH_PORT
+        self.quiet = quiet
 
     def add_job(self, task_name, playbook, hosts, vars=None, single_file_playbook=False):
         if single_file_playbook:
@@ -65,13 +66,15 @@ class AnsibleRunner(object):
 
         # rest of lines should be a valid json.
         str_result = ''.join(lines)
-        print(str_result)
+        if not self.quiet:
+            print(str_result)
         try:
             ansible_result = json.loads(str_result)
         except Exception:  # if result not a json, store the string value as result.
             job.result = str_result
         else:
-            print("===> json load succeeded!")
+            if not self.quiet:
+                print("===> json load succeeded!")
             for task_result in filter(lambda t: t['task']['name'] == job.task_name, ansible_result['plays'][0]['tasks']):
                 # print(task_result)
                 for host_ip in task_result['hosts'].keys():
@@ -85,6 +88,7 @@ class AnsibleRunner(object):
 
     def go(self):
         for job in self.jobs:
-            print(f"===> {job.cmd}")
+            if not self.quiet:
+                print(f"===> {job.cmd}")
             with os.popen(job.cmd) as f:
                 self.ansible_result_parser(job, f.readlines())

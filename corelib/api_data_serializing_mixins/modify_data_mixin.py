@@ -26,3 +26,16 @@ class ModifyDataMixin(object):
 
         self.message = f"To modify data with '{identifier}={self.params[identifier]}' succeeded." if success_msg is None else success_msg
         return changed
+
+    def onlyUpdate(self, model, filters, values):
+        """
+        作为修改数据的一种快捷方式，相对modifyData方法，DB执行效率更好。但是不够灵活。
+        返回匹配到的更新行数，Int型。
+        """
+        try:
+            rows = model.objects.filter(**filters).update(**values)
+        except Exception as e:
+            return self.error(f"ERROR: Failed to execute SQL update. {str(e)}")
+
+        self.message = f"{rows} row updated."
+        return rows
