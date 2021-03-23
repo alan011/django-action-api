@@ -52,22 +52,23 @@ def dataValidator(req=None, opt=None):
     return decorator
 
 
-def pre_handler(req=None, opt=None, private=False, perm=None, record=False):
+def pre_handler(req=None, opt=None, private=False, perm=None, record=False, record_label=None):
     """
     Can only be used for API action handlers.
     To integrate other decorators together, with `permissionChecker` and `recorder` pluggable by django settings.
     Params:
-        req         Pass to decorator `dataValidator`.
-        opt         Pass to decorator `dataValidator`.
-        perm        Pass to decorator `permissionChecker`. If None, Means do not check user's permission for this handler.
-        record      Only useful when django app 'corelib.recorder' is installed. If True, handler calling will be recorded.
-        private     If 'True', authenticating by auth_token is not allowed for this action.
+        req             Pass to decorator `dataValidator`.
+        opt             Pass to decorator `dataValidator`.
+        private         If 'True', authenticating by auth_token is not allowed for this action.
+        perm            Pass to decorator `permissionChecker`. If None, Means do not check user's permission for this handler.
+        record          Only useful when django app 'corelib.recorder' is installed. If True, handler calling will be recorded.
+        record_label    A readable name for action to record.
     """
     def decorator(func):
         func = dataValidator(req, opt)(func)
         if 'corelib.recorder' in settings.INSTALLED_APPS and record:
             from corelib.recorder.decorators import recorder
-            func = recorder()(func)
+            func = recorder(record_label)(func)
         if 'corelib.permission' in settings.INSTALLED_APPS and perm is not None:
             from corelib.permission.decorators import permissionChecker
             func = permissionChecker(perm)(func)

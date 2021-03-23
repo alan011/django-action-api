@@ -14,8 +14,9 @@ class APIHandlerBase(object):
         # 将handler作为工具使用，而不是被`apiIngress`调用时，可以设置此参数，绕过数据校验逻辑
         self.set_parameters_directly = set_parameters_directly
 
-        # 是否绕过pre_handler中的权限检查
+        # 是否绕过pre_handler中的权限检查. bind_username用于手动指定接口调用人信息，是一个字符串。
         self.by_pass_perm_check = False
+        self.by_pass_bind_username = ''
 
         # 处理结果
         self.user_perm = None

@@ -171,4 +171,3 @@ class GitLabClient(object):
                 "branch_name": branch["name"]
             })
         return branches
-        

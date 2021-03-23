@@ -4,5 +4,5 @@ from .handlers import APICallingRecordHandler
 
 class APIIngress(APIIngressBase):
     actions = {
-        'getoperationlist': APICallingRecordHandler,
+        'getRecordList': APICallingRecordHandler,
     }
