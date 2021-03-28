@@ -474,7 +474,7 @@ urlpatterns = [
     ...
 ```
 
-别忘记做model的migration.
+别忘记做数据库的migration.
 
 以此，提供用户权限设置的相关的简单action api:
 
@@ -517,7 +517,7 @@ urlpatterns = [
 
 ```
 
-然后对model走migration。
+然后数据库做migration。
 
 如此，便可在装饰器`pre_handler`中，启用操作请求记录。
 
