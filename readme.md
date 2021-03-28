@@ -2,7 +2,7 @@
 
 ## 简介
 
-django-action-api是一个基于django的API框架，原生支持异步任务处理，不依赖celery这种三方组件。
+Action API是一个基于django的API框架，原生支持异步任务处理，不依赖celery这种三方组件。
 
 API封装了request与reponse处理过程，开发者只需写对应action的handler处理方法即可。
 
@@ -108,11 +108,7 @@ class CMDBHost(models.Model):
 
 ```python
 from corelib import APIHandlerBase, ChoiceType, pre_handler, StrType, IntType, ObjectType, IPType
-from corelib.api_data_serializing_mixins.get_list_data_mixin import ListDataMixin
-from corelib.api_data_serializing_mixins.add_data_mixin import AddDataMixin
-from corelib.api_data_serializing_mixins.get_detail_data_mixin import DetailDataMixin
-from corelib.api_data_serializing_mixins.modify_data_mixin import ModifyDataMixin
-from corelib.api_data_serializing_mixins.delete_data_mixin import DeleteDataMixin
+from corelib.api_data_serializing_mixins import ListDataMixin, AddDataMixin, DetailDataMixin, ModifyDataMixin, DeleteDataMixin
 from .models import HostENV, CMDBHost
 
 
@@ -259,7 +255,7 @@ some_django_app/
 一个没啥用的异步任务，仅用做示例（asynctasks.py模块内容）:
 
 ```python
-from corelib.asynctask.asynclib.decorators import asynctask
+from corelib.asynctask.asynclib import asynctask
 from corelib.tools.logger import Logger
 import time
 
@@ -337,11 +333,36 @@ def your_async_func():
 
 ```
 
+但是，最好不要利用这个特性来做一些长时的延迟调用（延迟调用时间建议不要超过1分钟）。如果有长时延迟调用需求，请使用后面介绍的“定时任务”模块。
+
+因为，这里仅仅是依赖asynctask-server进程做简单的sleep等待。若等待期间asynctask-server进程被重启，则调用最终就不会被执行。
+
 ### 任务状态跟踪、执行结果记录
 
 `corelib.asynctask.api`提供一张表，与一组action接口，可将任务执行过程与结果记录到数据库中，并可通过固有API来做查询。
 
-要启用此功能，需要将`corelib.asynctask.api`注册到django settings中的`INSTALLED_APPS`中，以及全局urls.py中。
+要启用此功能，需要将`corelib.asynctask.api`注册到django settings.py中的`INSTALLED_APPS`中:
+
+```python
+INSTALLED_APPS = [
+    ...
+    corelib.asynctask.api,
+    ...
+]
+```
+
+以及全局urls.py中:
+
+```python
+from django.urls import path, include
+
+...
+
+urlpatterns = [
+    ...
+    path('asynctask/', include('corelib.asynctask.api.urls')],
+    ...
+```
 
 然后，`asynctask`装饰器通过`tracking`参数来启用记录功能。
 
@@ -355,16 +376,173 @@ def your_async_func():
 
 若是第一次添加，别忘了执行数据库的`migrate`。
 
-## cron定时任务
+最后，（按照之前的配置）可以通过以下内置API来管理异步任务结果：
+
+```yaml
+
+uri: /asynctask/api/v1
+
+actions:
+  getList: '获取任务结果记录列表'
+  delete: '删除一条任务结果记录'
+```
+
+## 定时任务
+
+在此框架中，根据配置数据入不入库，将定时任务分为两类：
+
+* 固定配置的定时任务
+
+    类似linux的crontab的固定配置，不可动态修改。即，定时任务配置数据不入库。
+
+* 动态配置的定时任务
+
+    定时任务配置数据写入数据库，可通过timerClient动态修改，或者通过固有API编写页面来修改。
+
+下面分别加以说明。
+
+### 固定配置
 
 <稍后补充>
 
-## 更多示例
-
-* 权限检查
+### 动态配置
 
 <稍后补充>
 
-* 操作记录
+## 基于Action的权限检查
 
-<稍后补充>
+Action API框架通过`corelib.permission`模块，可以对每个定义的action做自动化的请求权限检查与校验。
+
+考虑到权限方面的复杂性，Action API框架仅将权限按组划分，每个组代表一个权限等级，等级高低由等级序号判定，序号越大权限越高。
+
+内置以下两个权限组：
+
+```python
+PERMISSION_GROUPS = {
+    "admin": 2,
+    "normal": 1,
+}
+```
+
+若应用程序遵循此逻辑，需要增加其他权限组，请在django的全局设置settings.py中设置配置项`PERMISSION_GROUPS`。
+
+若有更复杂的权限需求，请自行定制。
+
+要启用此模块，请在django settings.py中启用此app:
+
+```python
+INSTALLED_APPS = [
+    ...
+    corelib.permission,
+    ...
+]
+```
+
+如此，便可在装饰器`pre_handler`中，启用权限检查。
+
+默认权限组配置，实际上将权限切割为三个等级，如下：
+
+```python
+    ...
+    @pre_handler(opt=['search', 'group.name', 'coding_type', 'page_length', 'page_index'])
+    def getHostList(self):  # 无需权限检查，所有用户（包括没有明确配置权限组的用户）都可访问。
+        self.getList(model=CMDBHost)
+
+    @pre_handler(req=['id'], perm='normal')  # 仅允许normal与admin组的用户访问
+    def getHostDetail(self):
+        self.getDetail(model=CMDBHost)
+    ...
+
+    @pre_handler(req=['hostname', 'env'], opt=['hostip'], perm='admin')  # 仅允许admin组的用户访问
+    def addHost(self):
+        self.addData(model=CMDBHost)
+    ...
+```
+
+当权限检查不通过时，Action API会返回403错误。
+
+permission模块，也提供一组内置API，注册全局urls.py便可启用:
+
+```python
+from django.urls import path, include
+
+...
+
+urlpatterns = [
+    ...
+    path('permission/', include('corelib.permission.urls')],
+    ...
+```
+
+别忘记做model的migration.
+
+以此，提供用户权限设置的相关的简单action api:
+
+```yaml
+
+uri: /permission/api/v1
+
+actions:
+  getUserList: '获取用户列表',
+  getUserDetail: '获取用户信息',  # 部分属性基于django User原生。
+  getPermGroups: '获取权限组列表',
+  getMyPerm: '获取当前用户的权限组',
+  setUserPerm: '设置用户权限组',
+```
+
+## 基于Action的请求记录
+
+Action API框架可通过`corelib.record`模块来对action的每一次请求做记录、入库，用作操作审计，用以监管用户的操作行为。
+
+注意，此功能适用于请求量较小、操作会产生一定影响的API。对于请求量较大的API，请不要启用此功能，会压垮数据库。
+
+同样需要注册APP来启用：
+
+```python
+INSTALLED_APPS = [
+    ...
+    corelib.recorder,
+    ...
+]
+```
+
+注册内置API相关URL：
+
+```python
+urlpatterns = [
+    ...
+    path('record/', include('corelib.recorder.urls')),
+    ...
+]
+
+```
+
+然后对model走migration。
+
+如此，便可在装饰器`pre_handler`中，启用操作请求记录。
+
+默认权限组配置，实际上将权限切割为三个等级，如下：
+
+```python
+    ...
+    @pre_handler(opt=['search', 'group.name', 'coding_type', 'page_length', 'page_index'])
+    def getHostList(self):  # 默认不做记录
+        self.getList(model=CMDBHost)
+    ...
+
+    @pre_handler(req=['hostname', 'env'], opt=['hostip'], record=True, record_label="新增host")
+    def addHost(self):  # 启用请求操作记录，record_label用于对action添加可读描述。不指定则为空。
+        self.addData(model=CMDBHost)
+    ...
+```
+
+提供内置API：
+
+```yaml
+uri: /record/api/v1
+
+actions:
+  getRecordList: '获取操作记录列表',
+```
+
+这样，开发者只需编写简单页面即可对接此API，实现用户操作记录监控，而无需做任何后端开发。
