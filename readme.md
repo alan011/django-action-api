@@ -519,9 +519,7 @@ urlpatterns = [
 
 然后数据库做migration。
 
-如此，便可在装饰器`pre_handler`中，启用操作请求记录。
-
-默认权限组配置，实际上将权限切割为三个等级，如下：
+如此，便可在装饰器`pre_handler`中，启用操作请求记录：
 
 ```python
     ...
