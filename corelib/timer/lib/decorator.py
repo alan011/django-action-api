@@ -53,7 +53,7 @@ def cron(every=None, crontab=None, enabled=True, dynamic=False):
             # 执行结果数据统计
             time_spend = round(end_at.timestamp() - start_at.timestamp(), 3)
             if func._is_dynamic and self.enable_dynamic:
-                from corelib.timer.api.models import CronJob
+                from corelib.timer.timer_api.models import CronJob
                 self.dynamic_tasks[name]['total_run_count'] += 1
                 _attrs = {
                     'last_run_start_at': start_at,

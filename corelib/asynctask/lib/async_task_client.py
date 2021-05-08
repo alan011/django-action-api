@@ -103,8 +103,8 @@ class AsyncClient(object):
 
         Return None or err.
         """
-        if 'corelib.asynctask.api' in settings.INSTALLED_APPS:
-            from corelib.asynctask.api.models import AsyncTask
+        if 'corelib.asynctask.async_api' in settings.INSTALLED_APPS:
+            from corelib.asynctask.async_api.models import AsyncTask
             try:
                 _, created = AsyncTask.objects.get_or_create(uuid=uuid, name=name)
             except Exception as e:

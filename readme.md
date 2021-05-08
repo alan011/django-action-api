@@ -322,7 +322,7 @@ token分两种：
     ```python
     INSTALLED_APPS = [
         ...
-        'corelib.api_auth.token',
+        'corelib.api_auth.token_api',
     ]
     ```
 
@@ -332,7 +332,7 @@ token分两种：
     from django.urls import path, include
 
     urlpatterns = [
-        path('token-manager/', include('corelib.api_auth.token.urls'))
+        path('token-manager/', include('corelib.api_auth.token_api.urls'))
     ]
     ```
 
@@ -452,14 +452,14 @@ def your_async_func():
 
 ### 任务状态跟踪、执行结果记录
 
-`corelib.asynctask.api`提供一张表，与一组action接口，可将任务执行过程与结果记录到数据库中，并可通过固有API来做查询。
+`corelib.asynctask.async_api`提供一张表，与一组action接口，可将任务执行过程与结果记录到数据库中，并可通过固有API来做查询。
 
-要启用此功能，需要将`corelib.asynctask.api`注册到django settings.py中的`INSTALLED_APPS`中:
+要启用此功能，需要将`corelib.asynctask.async_api`注册到django settings.py中的`INSTALLED_APPS`中:
 
 ```python
 INSTALLED_APPS = [
     ...
-    corelib.asynctask.api,
+    corelib.asynctask.async_api,
     ...
 ]
 ```
@@ -471,7 +471,7 @@ from django.urls import path, include
 
 urlpatterns = [
     ...
-    path('asynctask/', include('corelib.asynctask.api.urls')],
+    path('asynctask/', include('corelib.asynctask.async_api.urls')],
 ```
 
 然后，`asynctask`装饰器通过`tracking`参数来启用记录功能。
@@ -606,7 +606,7 @@ python3 corelib/timer/bin/timer_server
 ```python
 INSTALLED_APPS = [
     ...
-    'corelib.timer.api',
+    'corelib.timer.timer_api',
 ]
 
 ```
@@ -618,7 +618,7 @@ from django.urls import path, include
 
 urlpatterns = [
     ...
-    path('timer/', include('corelib.timer.api.urls'))
+    path('timer/', include('corelib.timer.timer_api.urls'))
 ]
 
 ```
@@ -705,12 +705,18 @@ def add_task():
         'description': '第一个测试任务',
         'task': 'testapp.timer.unusable_task',  # 动态任务模块（模板）
         'args': ['SRE'],  # 传给参数foo
-        'kwargs': {'bar': '666'}  # 传给参数bar
+        'kwargs': {'bar': '666'},  # 传给参数bar
         'every': 60 * 5
     }
     call('addCron', data1)
 
 # 成功添加后，timer_server会自动加载新的任务，并开始按计划执行。无需重启timer_server
+
+
+# action: getCronList
+# 用户获取实际的动态任务列表
+def get_tasks():
+    call('getCronList', {})
 
 
 # action: disableCron
@@ -881,7 +887,7 @@ urlpatterns = [
 
 ```
 
-然后数据库做migration。
+然后数据库做migrate。
 
 如此，便可在装饰器`pre_handler`中，启用操作请求记录：
 
@@ -898,68 +904,9 @@ urlpatterns = [
     ...
 ```
 
-提供内置API：
+内置API的固定URI：`/record/api/v1`
 
-```yaml
-uri: /record/api/v1
-
-actions:
-  getRecordList: '获取操作记录列表',
-```
-
-这样，开发者只需编写简单页面即可对接此API，实现用户操作记录监控，而无需做任何后端开发。
-
-支持的配置选项，请参考文档：
-
-## API认证相关
-
-前文提过，API的认证有两种方式：
-
-* 若请求体中提供auth_token字段，则走token认证，不要求用户登录。
-* 若不提供token，则默认走django的session机制，要求用户登录。
-
-Action API框架默认提供一个token管理工具，方便管理员来管理token:
-
-```bash
-corelib/api_auth/bin/token_manager -h  # 打印帮助信息。
-```
-
-token的管理需要一张数据表来支持，故，需要注册Django APP：
-
-```python
-INSTALLED_APPS = [
-    ...
-    corelib.api_auth.token,
-    ...
-]
-```
-
-然后，做django的migration来创建这张数据表。完成后，便可使用以上工具来管理token。
-
-同样，Action API提供了一组内置action接口来管理token，注册全局URL便可启用：
-
-```python
-urlpatterns = [
-    ...
-    path('token-manager/', include('corelib.api_auth.token.urls')),
-    ...
-]
-
-```
-
-内置接口与Action：
-
-```yaml
-URI: /token-manager/api/v1
-
-Actions:
-  getTokenList: '获取token列表'
-  addToken: '添加一个token'
-  deleteToken: '删除一个token'
-  setTokenExpiredTime: '设置token的失效时间'
-```
-
-支持的配置选项，请参考文档：
+支持的actions请参考模块：`corelib/recorder/api.py`
 
 ## 其他说明
 

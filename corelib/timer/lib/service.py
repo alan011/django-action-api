@@ -63,7 +63,7 @@ class Timer(object):
             self.dynamic_tasks = self.manager.dict()
 
         self.enable_dynamic = False
-        if 'corelib.timer.api' in settings.INSTALLED_APPS:
+        if 'corelib.timer.timer_api' in settings.INSTALLED_APPS:
             self.enable_dynamic = True
 
     def schedule_task(self, func, dynamic_task=None):
@@ -130,7 +130,7 @@ class Timer(object):
         注册timer定时任务
         '''
         if self.enable_dynamic:
-            from corelib.timer.api.models import AvailableTasks
+            from corelib.timer.timer_api.models import AvailableTasks
 
         for app in filter(lambda s: not s.startswith('django.'), settings.INSTALLED_APPS):
             mod_str = f'{app}.{TIMER_REGISTER_MODULE}'
@@ -168,7 +168,7 @@ class Timer(object):
         读取数据库配置，更新全局属性`dynamic_tasks`与`dynamic_state`
         """
         self.logger.log('Try to update dynamic tasks from DB', 'DEBUG')
-        from corelib.timer.api.models import CronJob
+        from corelib.timer.timer_api.models import CronJob
 
         self.dynamic_tasks = self.manager.dict() if self.is_process_mod else {}
         qs = CronJob.objects.filter(enabled=1)
@@ -200,7 +200,7 @@ class Timer(object):
         '''
         针对动态任务，根据配置，将已失效的任务自动设置为失效状态。
         '''
-        from corelib.timer.api.models import CronJob
+        from corelib.timer.timer_api.models import CronJob
 
         expired_time = self.dynamic_tasks[name]['expired_time']
         expired_count = self.dynamic_tasks[name]['expired_count']

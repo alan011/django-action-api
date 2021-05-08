@@ -49,11 +49,11 @@ def asynctask(func=None, tracking=False, delaytime=0, name=None):
     def wrapper(*args, **kwargs):
         # To record.
         _to_record = False
-        if tracking and 'corelib.asynctask.api' in settings.INSTALLED_APPS:
+        if tracking and 'corelib.asynctask.async_api' in settings.INSTALLED_APPS:
             _to_record = True
             uuid = kwargs.pop('__async_task_uuid__')
             func_name = kwargs.pop('__async_func_name__')
-            from corelib.asynctask.api.models import AsyncTask
+            from corelib.asynctask.async_api.models import AsyncTask
             obj = AsyncTask.objects.filter(uuid=uuid).first()
             obj.status = 1
             obj.save()
