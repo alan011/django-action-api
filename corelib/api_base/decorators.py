@@ -1,6 +1,6 @@
 from functools import wraps
 from django.conf import settings
-from .api_field_types import BoolType
+from .api_field_types import BoolType, IntType
 
 
 def _dataValidate(self, req, opt):
@@ -44,6 +44,18 @@ def dataValidator(req=None, opt=None):
         def validate(self, *args, **kwargs):
             required = req if req is not None else []
             optional = opt if opt is not None else []
+
+            # Default pagination
+            if getattr(self, 'do_pagination', False):
+                if self.post_fields.get('page_index', None) is None:
+                    self.post_fields['page_index'] = IntType(min=1)
+                if self.post_fields.get('page_length', None) is None:
+                    self.post_fields['page_length'] = IntType(min=1)
+                if 'page_index' not in optional and 'page_index' not in required:
+                    optional.append['page_index']
+                if 'page_length' not in optional and 'page_length' not in required:
+                    optional.append['page_length']
+
             if not _dataValidate(self, required, optional):
                 return None
             func_result = func(self, *args, **kwargs)

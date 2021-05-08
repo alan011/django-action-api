@@ -1,23 +1,39 @@
-#!/usr/local/python36/bin/python3
+#!/usr/local/bin/python3
 import os
 import sys
 import django
 import random
 import string
 import argparse
+import re
 
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../../'))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.append(BASE_DIR)
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "inspection_project.settings")
+
+manage_file = os.path.join(BASE_DIR, 'manage.py')
+if not os.path.isfile(manage_file):
+    raise SystemExit(f'FATAL: It seems not a django project in directory: {BASE_DIR}')
+
+DJANGO_SETTING = None
+with open(manage_file) as f:
+    for line in f:
+        if re.search(r"os.environ.setdefault\('DJANGO_SETTINGS_MODULE'", line):
+            DJANGO_SETTING = line.split("'")[3]
+            break
+if not DJANGO_SETTING:
+    raise SystemExit(f"FATAL: It seems not a django `manage.py`: {manage_file}")
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", DJANGO_SETTING)
 django.setup()
 
-from corelib.token_manager.models import AuthToken
+from corelib.api_auth.token.models import AuthToken
 from datetime import timedelta
 from django.utils import timezone
 
 
 class TokenManager(object):
     model = AuthToken
+    username_format = r'^[\w\.\-\_]+$'
 
     def __init__(self, username_len=8, token_len=64):
         self.username_len = username_len
@@ -50,10 +66,10 @@ class TokenManager(object):
     def make_token(self):
         if not self.args.username:
             self.args.username = self._token_dup_check('username', self._gen_random_str, string.ascii_letters, self.username_len)
-        elif len(self.args.username) != 8:
-            raise SystemExit("ERROR: invalid username: '{}'. Username must in length 8.".format(self.args.username))
-        token = self._token_dup_check('token', self._gen_random_str, string.ascii_letters + string.digits, self.token_len)
+        if not re.search(self.username_format, self.args.username) or len(self.args.username) > 64:
+            raise SystemExit('Invalid username: {}'.format(self.args.username))
 
+        token = self._token_dup_check('token', self._gen_random_str, string.ascii_letters + string.digits, self.token_len)
         obj = self.model(username=self.args.username, token=token, expired_time=self.args.expired_time)
         obj.save()
 
@@ -70,10 +86,14 @@ class TokenManager(object):
 
     def delete_token(self):
         token = self.args.token_string.split('.')
-        if len(token) != 2 or len(token[0]) != 8 or len(token[1]) != 64:
+        token_user = '.'.join(token[:-1])
+        token_key = token[-1]
+        if len(token_key) != 64:
+            raise SystemExit('Invalid token string: {}'.format(self.args.token_string))
+        if not re.search(self.username_format, token_user) or len(token_user) > 64:
             raise SystemExit('Invalid token string: {}'.format(self.args.token_string))
 
-        for obj in self.model.objects.filter(username=token[0], token=token[1]):
+        for obj in self.model.objects.filter(username=token_user, token=token_key):
             print(self._delete_obj(obj))
 
     def run(self):
@@ -84,7 +104,7 @@ class TokenManager(object):
         # Subcommand: add
         add_parser = subparsers.add_parser('add', help="To add a token")
         add_parser.add_argument('-u', '--user', metavar='username', required=False, dest='username',
-                                help='To specify a username with length 8. If not provided, A random username will be auto-generated.')
+                                help='To specify a username. If not provided, A random username will be auto-generated.')
         add_parser.add_argument('-e', '--expired-time', metavar='n', type=int, required=False, default=86400,
                                 help="To specify a digit expired time in seconds for this token. Default is '86400', means one day. If '0' provided, this token \
 will never be expired.")
@@ -97,7 +117,7 @@ will never be expired.")
         # Subcommand: delete
         delete_parser = subparsers.add_parser('delete', aliases=['del'], help="To delete a specified token")
         delete_parser.add_argument('token_string', metavar='<token_string>',
-                                   help="A token string in format: '<8-length username>.<64-length token>'")
+                                   help="A token string in format: '<username>.<64-length token>'")
         delete_parser.set_defaults(func=self.delete_token)
 
         # Subcommand: clean

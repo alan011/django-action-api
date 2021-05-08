@@ -34,6 +34,9 @@ class ListDataMixin(BaseSerializingMixin):
         未传值则不依此来搜索/过滤，返回所有其他匹配条件的数据。
     5、特别注意：post_fields定义时，要允许为None
     """
+    # 默认开启分页功能
+    auto_pagination = True
+
     # 数据总长度，分页功能使用
     data_total_length = None
 
@@ -144,6 +147,8 @@ class ListDataMixin(BaseSerializingMixin):
         if not queryset.exists():
             self.data = []
         else:
+            if self.auto_pagination and "page_index" not in self.checked_params:
+                self.checked_params['page_index'] = 1
             if "page_index" in self.checked_params:
                 queryset = self.pagination(queryset)
             self.data = self.makeListData(queryset, model)

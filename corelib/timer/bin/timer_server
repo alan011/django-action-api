@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/local/bin/python3
 
 import sys
 import os
@@ -24,7 +24,9 @@ if not DJANGO_SETTING:
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", DJANGO_SETTING)
 django.setup()
 
-from corelib.asynctask import MainServer
+from corelib.timer import Timer
+from corelib.timer.lib.defaults import TIMER_WORKER_MOD
 
-server = MainServer()
-server.main()
+if __name__ == '__main__':
+    server = Timer(TIMER_WORKER_MOD)
+    server.start()

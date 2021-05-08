@@ -1,7 +1,7 @@
 from corelib import APIHandlerBase, pre_handler, ObjectType, ChoiceType, StrType, IntType
-from corelib.api_data_serializing_mixins.get_list_data_mixin import ListDataMixin
-from corelib.api_data_serializing_mixins.get_detail_data_mixin import DetailDataMixin
-from corelib.api_data_serializing_mixins.modify_data_mixin import ModifyDataMixin
+from corelib.api_serializing_mixins.get_list_data_mixin import ListDataMixin
+from corelib.api_serializing_mixins.get_detail_data_mixin import DetailDataMixin
+from corelib.api_serializing_mixins.modify_data_mixin import ModifyDataMixin
 from .defaults import PERMISSION_GROUPS
 from .tools import get_model
 

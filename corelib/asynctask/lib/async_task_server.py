@@ -91,7 +91,7 @@ class MainServer(object):
     def registerFunctions(self):
         self.logger.msg_prefix = 'AsyncServer.registerFunctions(): '
 
-        for app in settings.INSTALLED_APPS:
+        for app in filter(lambda s: not s.startswith('django.'), settings.INSTALLED_APPS):
             mod_str = f'{app}.{ASYNCTASK_REGISTER_MODULE}'
             try:
                 mod = import_module(mod_str)

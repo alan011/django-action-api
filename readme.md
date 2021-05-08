@@ -20,33 +20,39 @@ API非RESTful设计，这是因为，设计这套框架的初衷，是为了在�
 
 值得一提的是，django+celery的异步模式中常见的DB链接不释放的问题，在本框架的异步模块中，也得到完美解决（采用django原生方式释放DB连接，支持django的`CONN_MAX_AGE`全局配置参数）。
 
-* 递归校验
+* 原生提供定时任务模块
+
+集成timer定时任务模块，提供简易的静态定时任务功能，支持crontab与every两种方式，来运行定时任务。
+
+也提供较复杂动态定时任务功能，把定时任务配置数据都入库，并记录最后一次执行的执行结果。除了crontab与every外，还支持一次性定时任务at_time类型。
+
+* 请求数据的递归校验
 
 对于请求的JSON数据参数，支持绝大多数场景的递归嵌套校验。
 
 * 灵活的数据序列化
 
-提供各种序列化Mixin工具，分层封装，对常规的增、删、改、查数据操作，提供灵活的、分层的序列化支持。可按需从不同层级接入序列化工具，开发灵活。
+Action API以Mixin Class的方式提供序列化工具，对常规的增、删、改、查数据操作，提供灵活的、分层的序列化支持。
+
+分层封装，可按需从不同层级接入序列化工具，开发灵活。
 
 另外，列表数据的序列化支持分页操作。
 
-* 提供cron定时器
-
-集成timer定时任务模块，支持every、crontab两种方式运行定时任务
-
 * 提供接口权限管理控制模块
 
-* 提供action请求记录模块
+* 提供action请求记录模块，一般用于系统的操作审计
 
-* 提供API的token管理工具
+* 提供API的token管理模块
 
 * 提供一系列运维开发领域的常用工具
 
-## 安装
+## 安装与配置
+
+### 安装
 
 将corelib目录整个放到django项目根目录即可。
 
-需pip安装的依赖软件包：
+corelib依赖软件包如下：
 
 ```text
 Django
@@ -56,9 +62,25 @@ jsonfield
 # ansible  # 如果需要用到corelib/tools/ansible_runner.py工具的话。
 ```
 
-## 示例代码
+### 配置
 
-一个示例django app，实现了对数据表的常规增、删、改、查操作的一组action接口。
+corelib中的各个模块，支持一系列的配置选项，只需在django的全局settings.py中配置即可。
+
+具体各模块儿支持的配置选项，请参考各个模块的`defaults.py`模块。
+
+## 基础用法、核心模块
+
+Action API中以下三个模块为核心与基础：
+
+```shell
+
+corelib/api_auth  # 负责接口的认证工作
+corelib/api_base  # 基础封装，请求数据字段校验类型的封装。
+corelib/api_serializing_mixin  # 以mixin-class的方式提供一系列常规增删改查序列化工具。
+
+```
+
+下面以一个示例django app，展示其用法。实现了对数据表的常规增、删、改、查操作的一组action接口。
 
 代码结构：
 
@@ -102,13 +124,14 @@ class CMDBHost(models.Model):
     ]
     detail_fields = list_fields + ['create_time']  # 时间类型序列化时，将自动转换为对应格式的字符串，默认格式'%F %T'，支持自定义。
 
+# 若不提供list_fields与detail_fields，序列化时，默认展示所有字段。
 ```
 
 常规增、删、改、查的handlers.py示例
 
 ```python
 from corelib import APIHandlerBase, ChoiceType, pre_handler, StrType, IntType, ObjectType, IPType
-from corelib.api_data_serializing_mixins import ListDataMixin, AddDataMixin, DetailDataMixin, ModifyDataMixin, DeleteDataMixin
+from corelib.api_serializing_mixins import ListDataMixin, AddDataMixin, DetailDataMixin, ModifyDataMixin, DeleteDataMixin
 from .models import HostENV, CMDBHost
 
 
@@ -201,7 +224,11 @@ urlpatterns = [
 
 注意：一般一个django app只需在全局urls.py定义中，定义一个path即可。可有效避免过于复杂的url匹配规则，引起意料之外的错误。
 
-## 请求体数据格式与返回数据格式
+以上即展示了基础模块的用法。
+
+下面，对请求数据、返回数据，以及token管理，分别加以说明。
+
+### 请求体数据格式与返回数据格式
 
 采用POST方法请求，post数据采用json格式传递，并满足以下要求：
 
@@ -211,6 +238,17 @@ urlpatterns = [
     # "auth_token": "xxxxxxxxxxxxxx",  # 若提供，则走token认证，否则走session认证。
     # ...其他字段
 }
+```
+
+特别说明：`auth_token`字段用于接口的token认证，无需用户登录。故可归类于外部接口。
+若想定义某一个handler作为私有接口，即，必须有用户登录才能访问（也即是必须走session认证），可以通过`pre_handler`的`private`参数来设置，例如：
+
+```python
+
+@pre_hander(private=True)
+def some_action(self):
+    pass
+
 ```
 
 关于数据返回，若处理正确则返回一个JSON字典， status_code为200：
@@ -226,6 +264,81 @@ urlpatterns = [
 ```
 
 如果出现了系统级别的错误，则会返回一个字符串，status_code将为4xx或5xx（可自定义）。
+
+基础模块的可选配置参数，请分别参考以下defaults模块：
+
+```shell
+
+corelib/api_auth/defaults.py  # 接口认证相关配置。
+corelib/api_base/defaults.py  # 绕过接口认证的相关配置。
+corelib/api_serializing_mixins/defaults.py  # 目前只有list查询时，分页默认行为的相关配置。
+
+```
+
+### token管理说明
+
+token分两种：
+
+* 静态token
+
+    直接写在配置文件`settings.py`中的token，通过参数`ACTION_STATIC_TOKENS`来指定，例如
+
+    ``` python
+
+    ACTION_STATIC_TOKENS = ['lalalalalalalalalalalallalalalalalalalallalal', 'test2222222222222222222']
+
+    ```
+
+    静态token直接配置，不会入库，也没有user归属，可随意配置。
+
+    一般用于测试，不建议在生产环境中使用静态token。
+
+* 动态token
+
+    api_auth模块中集成了一个动态token管理工具，将token数据记录在数据库中，并可通过命令行，或者API，动态的管理token。
+
+    动态token是一个字符串，由两部分组成：
+
+    ```text
+    <username>.<64位随机码>
+
+    随机码由系统自动生成，不会包含字符‘.’
+    ```
+
+    这两个字段分别对应数据库中的两个字段，做存储。
+
+    这样，可根据此处的`username`来关联真实用户，做权限控制。
+
+    命令行的使用，请查看help文档：
+
+    ```shell
+
+    python3 corelib/api_auth/bin/token_manager --help
+
+    ```
+
+    api的启用，需要注册django项目settings的`INSTALLED_APPS`:
+
+    ```python
+    INSTALLED_APPS = [
+        ...
+        'corelib.api_auth.token',
+    ]
+    ```
+
+    并注册url：
+
+    ```python
+    from django.urls import path, include
+
+    urlpatterns = [
+        path('token-manager/', include('corelib.api_auth.token.urls'))
+    ]
+    ```
+
+    提供固定URI: `/token-manager/api/v1`
+
+    提供token的增删改查actions，请参考模块: `corelib/api_auth/token/api.py`
 
 ## 异步任务
 
@@ -246,7 +359,7 @@ Action API异步模块提供一个独立运行的异步服务，通RPC调用来�
 ```script
 some_django_app/
     api.py
-    asynctasks.py  # 异步任务模块，模块名称（文件名前缀），可以通过配置项`ASYNCTASK_REGISTER_MODULE`在settings中设定
+    asynctasks.py  # 异步任务模块，模块名称可通过配置项`ASYNCTASK_REGISTER_MODULE`在settings中设定
     handlers.py
     models.py
     urls.py
@@ -255,7 +368,7 @@ some_django_app/
 一个没啥用的异步任务，仅用做示例（asynctasks.py模块内容）:
 
 ```python
-from corelib.asynctask.asynclib import asynctask
+from corelib.asynctask import asynctask
 from corelib.tools.logger import Logger
 import time
 
@@ -356,12 +469,9 @@ INSTALLED_APPS = [
 ```python
 from django.urls import path, include
 
-...
-
 urlpatterns = [
     ...
     path('asynctask/', include('corelib.asynctask.api.urls')],
-    ...
 ```
 
 然后，`asynctask`装饰器通过`tracking`参数来启用记录功能。
@@ -378,36 +488,298 @@ def your_async_func():
 
 最后，（按照之前的配置）可以通过以下内置API来管理异步任务结果：
 
-```yaml
+固定URL: `/asynctask/api/v1`
 
-uri: /asynctask/api/v1
+支持的action，请参考api模块: `corelib/asynctask/api/api.py`
 
-actions:
-  getList: '获取任务结果记录列表'
-  delete: '删除一条任务结果记录'
-```
+支持的配置参数，请参考defaults模块：`corelib/asynctask/lib/defaults.py`
 
 ## 定时任务
 
-在此框架中，根据配置数据入不入库，将定时任务分为两类：
+根据配置数据入不入库，将定时任务分为两类：
 
-* 固定配置的定时任务
+* 静态任务
 
-    类似linux的crontab的固定配置，不可动态修改。即，定时任务配置数据不入库。
+    定时任务配置直接在编码时固定写死，配置数据不入库。
+    timer服务启动后立即开始按配置执行。
+    修改定时配置，必须重启timer进程。
 
-* 动态配置的定时任务
+* 动态任务
 
-    定时任务配置数据写入数据库，可通过timerClient动态修改，或者通过固有API编写页面来修改。
+    定时任务配置数据写入数据库，可通过内置API动态修改（也可开发配套的前端页面做常规增删改查）。
+    启动timer服务是，代码中标注为动态任务的任务函数，只是可配置的task模块，需要通过API进一步配置时间参数，才能开始执行。
+    动态任务数据更新后，需等待timer做定时同步（即，加载数据库中的定时任务数据），默认同步周期为1分钟。
+    这意味着，修改了动态任务数据，会在1分钟内自动生效（不会立即生效），无需重启timer进程。
+    如果想立即生效，也可以通过重启timer进程来实现。
 
-下面分别加以说明。
+定时任务可以有三种执行方式：
 
-### 固定配置
+* every
 
-<稍后补充>
+    周期执行，指定执行间隔，单位为秒，最小间隔1秒，0表示不启用。
 
-### 动态配置
+* crontab
 
-<稍后补充>
+    类似linux的crontab字符串，拥有7个字段：
+
+    ```shell
+    * * * * * * *
+    秒 分 时 日 月 周 年
+    ```
+
+* at_time
+
+    在指定时间，执行一次的定时任务。
+
+    仅动态任务支持这种方式，静态任务不支持。
+
+下面分别举例说明。
+
+### 静态任务
+
+代码结构（类似asynctask模块）：
+
+```script
+some_django_app/
+    api.py
+    asynctasks.py
+    timer.py  # 异步任务模块，模块名称可通过配置项`TIMER_REGISTER_MODULE`在settings中设定
+    handlers.py
+    models.py
+    urls.py
+```
+
+编码示例：
+
+```python
+from corelib.timer.lib import cron
+from corelib.tools.logger import Logger
+
+
+# 每5秒执行一次
+@cron(every=5)
+def a_test_task():
+    logger = Logger(msg_prefix='a_test_task(): ')
+    logger.log("start...")
+    time.sleep(1)
+    logger.log("end!")
+
+
+# 2021年，每天凌晨2点开始执行（其他年份自动失效）
+@cron(crontab="0 0 2 * * * 2021")
+def crontab_task():
+    logger = Logger(msg_prefix='crontab_task(): ')
+    logger.log("start...")
+    time.sleep(10)
+    logger.log("end!")
+
+
+# 表示当时间的描述为0 20 40时开始执行。
+# 注意'*/<num>'写法跟every不一样：
+#   这里，表示当前时间位的数值，对<num>取余为0时才开始执行。
+#   故，若在秒位写上'*/40'，表示秒数在’0 40'时执行;
+#   如果写上'*/70'，则只能秒数只在0时执行。
+#   其他时间位，依次类推
+@cron(crontab="*/20 * * * * * *")
+def crontab_task():
+    logger = Logger(msg_prefix='crontab_task(): ')
+    logger.log("start...")
+    time.sleep(10)
+    logger.log("end!")
+
+```
+
+值得一提的是，静态任务函数不可定义参数，不能传参（故，叫静态），也无法记录执行结果，只能在日志中查看执行成功还是失败。若要传参，以及记录执行结果，请使用动态任务。
+
+最后，启动timer服务进程
+
+```shell
+cd /path/to/your/django_project/
+
+python3 corelib/timer/bin/timer_server
+```
+
+### 动态任务
+
+动态任务要求先在django的`INSTALLED_APPS`中注册timer的内置api:
+
+```python
+INSTALLED_APPS = [
+    ...
+    'corelib.timer.api',
+]
+
+```
+
+以及内置URL：
+
+```python
+from django.urls import path, include
+
+urlpatterns = [
+    ...
+    path('timer/', include('corelib.timer.api.urls'))
+]
+
+```
+
+别忘记做migration，来创建动态任务用的数据表。
+
+代码组织结构、启动方式都跟静态任务一致，可跟静态任务写在同一个模块文件中。
+
+编码示例：
+
+```python
+
+...
+
+@cron(dynamic=True)
+def unusable_task(foo, bar=None):
+    '''
+    这是一个测试用的动态任务
+
+    参数：
+
+    lei     字符串，必填。
+    hai     字符串，可选。默认为None。
+    '''
+    logger = Logger(msg_prefix='unusable_task(): ')
+    logger.log('start...')
+    print(foo, bar)
+    time.sleep(4)
+    logger.log('end!')
+
+# 注意：目前动态任务仍然不会记录任务函数的return值（考虑到对于return值，做序列化的复杂性，当前版本暂时不做此项支持）。
+# 数据库中记录的所谓“执行结果”，仅仅指的是任务执行成功了，还是失败了。以及其他各项任务执行结果指标（具体请通过API查看）
+```
+
+这样，当timer_server启动时，便会把动态任务函数，注册到DB中，供用户做进一步配置。
+
+特别注意：
+    这里的动态任务函数，不是一个具体的可执行的任务，它更应当看做是一个任务模板，可以基于此函数来配置具体的动态任务。
+    建议每一个动态任务，都编写文档说明，这样，用户在创建具体的动态任务时，才能知道如何给函数传参。
+
+当前以注册了哪些动态任务（模板），可以通过API查看（我们编写了一个接口测试脚本）：
+
+```python
+import requests
+
+
+def call(action, data=None):
+    _data = {
+        'action': action,
+
+        # 要求在django的settings.py中设定一个静态token
+        # ACTION_STATIC_TOKENS = ['lalalalalalalalalalalallalalalalalalalallalal']
+        # 具体，请参考token管理说明。
+        'auth_token': 'lalalalalalalalalalalallalalalalalalalallalal',
+    }
+    if data:
+        _data.update(data)
+    res = requests.post(url='http://127.0.0.1:8888/timer/api/v1', json=_data)  # 假设django的web服务起本地的8888端口
+
+    print(f"status_code: {res.status_code}")
+    print(f"data: {res.json()}")
+
+
+# action: getAvailableCronList
+# 用于返回，当前可用的动态任务（模板）函数，以及其文档说明
+def get_availables():
+    call('getAvailableCronList', {})
+
+
+if __name__ == '__main__':
+    get_availables()
+
+```
+
+然后便可使用已注册的动态任务（模板）来定义具体的动态任务：
+
+```python
+
+# action: addCron
+# 新建一个名为test00001的动态定时任务。每5分钟执行一次。
+def add_task():
+    data1 = {
+        'name': 'test00001',
+        'description': '第一个测试任务',
+        'task': 'testapp.timer.unusable_task',  # 动态任务模块（模板）
+        'args': ['SRE'],  # 传给参数foo
+        'kwargs': {'bar': '666'}  # 传给参数bar
+        'every': 60 * 5
+    }
+    call('addCron', data1)
+
+# 成功添加后，timer_server会自动加载新的任务，并开始按计划执行。无需重启timer_server
+
+
+# action: disableCron
+# 禁用任务
+def disable_task():
+    data = {'id': 1}
+    call('disableCron', data)
+
+
+# action: enableCron
+# 启用任务
+def enable_task():
+    data = {'id': 1}
+    call('enableCron', data)
+
+
+# action: modifyCron
+# 限制只能运行100次，之后自动失效。
+def modify_task():
+    data1 = {
+        'id': 1,
+        'expired_count': 100,  # 0表示无限制
+    }
+    call('modifyCron', data1)
+
+
+# action: modifyCron
+# 直接指定失效时间，过期自动失效。
+def modify_task():
+    data1 = {
+        'id': 1,
+        'expired_count': 0,  # 0表示无限制
+        'expired_time': '2021-05-10 00:00:00',
+    }
+    call('modifyCron', data1)
+
+# expired_time与expired_count同时设定时，谁先达到即已谁为准。
+
+# action: modifyCron
+# 修改任务为一个at_time类型的任务。
+# at_time类型的任务，会在指定时间点执行一次，然后立即失效。
+# 如果执行时间，早于当前时间，timer进程加载到新配置后，会立即执行。
+def modify_task():
+    data1 = {
+        'id': 1,
+        'every': 0,  # 0 表示取消every设定
+        'crontab': '',  # 空字符表示取消crontab设定。
+        'at_time': '2021-05-07 07:03:00',  # 当at_time不为空，切every，crontab都没有设置时，表示是一个at_time任务。
+    }
+    call('modifyCron', data1)
+
+
+# action: renewAtTimeTask
+# 当一个at_time任务执行结束自动失效后，此action可用来重置一个at_time任务。
+# 重置时，不会自动启用这个任务，别忘记重新启用此任务。
+def renew():
+    data = {
+        'id': 1,
+        'at_time': '2021-05-07 07:11:05'  # 可选参数。若不提供，则表示扔采用原来的时间。
+    }
+
+    call('renewAtTimeTask', data)
+```
+
+固定URI: `/timer/api/v1`
+
+action请参考api模块: `corelib/timer/api/api.py`
+
+timer支持的配置选项请参考defaults模块: `corelib/timer/lib/defaults.py`
 
 ## 基于Action的权限检查
 
@@ -476,19 +848,11 @@ urlpatterns = [
 
 别忘记做数据库的migration.
 
-以此，提供用户权限设置的相关的简单action api:
+固定URI: `/permission/api/v1`
 
-```yaml
+action请参考api模块：`corelib/permission/api.py`
 
-uri: /permission/api/v1
-
-actions:
-  getUserList: '获取用户列表',
-  getUserDetail: '获取用户信息',  # 部分属性基于django User原生。
-  getPermGroups: '获取权限组列表',
-  getMyPerm: '获取当前用户的权限组',
-  setUserPerm: '设置用户权限组',
-```
+支持的配置选项，请参考defaults模块： `corelib/permission/defaults.py`
 
 ## 基于Action的请求记录
 
@@ -544,3 +908,70 @@ actions:
 ```
 
 这样，开发者只需编写简单页面即可对接此API，实现用户操作记录监控，而无需做任何后端开发。
+
+支持的配置选项，请参考文档：
+
+## API认证相关
+
+前文提过，API的认证有两种方式：
+
+* 若请求体中提供auth_token字段，则走token认证，不要求用户登录。
+* 若不提供token，则默认走django的session机制，要求用户登录。
+
+Action API框架默认提供一个token管理工具，方便管理员来管理token:
+
+```bash
+corelib/api_auth/bin/token_manager -h  # 打印帮助信息。
+```
+
+token的管理需要一张数据表来支持，故，需要注册Django APP：
+
+```python
+INSTALLED_APPS = [
+    ...
+    corelib.api_auth.token,
+    ...
+]
+```
+
+然后，做django的migration来创建这张数据表。完成后，便可使用以上工具来管理token。
+
+同样，Action API提供了一组内置action接口来管理token，注册全局URL便可启用：
+
+```python
+urlpatterns = [
+    ...
+    path('token-manager/', include('corelib.api_auth.token.urls')),
+    ...
+]
+
+```
+
+内置接口与Action：
+
+```yaml
+URI: /token-manager/api/v1
+
+Actions:
+  getTokenList: '获取token列表'
+  addToken: '添加一个token'
+  deleteToken: '删除一个token'
+  setTokenExpiredTime: '设置token的失效时间'
+```
+
+支持的配置选项，请参考文档：
+
+## 其他说明
+
+最后，关于代码风格，附上corelib在开发过程中的，vscode中Python编码配置：
+
+```json
+    "python.linting.enabled": true,
+    "python.linting.flake8Enabled": true,
+    "python.linting.flake8Args": [
+        "--max-line-length=160",
+        "--ignore=E402,F403,F405,W503,E126,E902",
+    ],
+```
+
+这样，阅读corelib代码时，vscode显示就会很干净。

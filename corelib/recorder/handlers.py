@@ -1,5 +1,5 @@
 from corelib import APIHandlerBase, pre_handler, ChoiceType, StrType, IntType
-from corelib.api_data_serializing_mixins.get_list_data_mixin import ListDataMixin
+from corelib.api_serializing_mixins.get_list_data_mixin import ListDataMixin
 from .models import APICallingRecord
 
 

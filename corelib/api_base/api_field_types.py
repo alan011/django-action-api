@@ -228,13 +228,16 @@ class DatetimeType(FieldType):
 
     Initiallizing params:
         format: datetime string format passed to function datetime.strptime().
+
+        extra_allowed_values: A list. Contains extra allowed values not match the `format`.
+        extra_allowed_trans: A Dict. Using it to translate the extra_allowed_values to target values.
     """
 
     def __init__(self, format='%Y-%m-%d %H:%M:%S', extra_allowed_values=None, extra_allowed_trans=None, **kwargs):
         super().__init__(**kwargs)
         self.format = format
-        self.extra_allowed_values = extra_allowed_values
-        self.extra_allowed_trans = extra_allowed_trans if extra_allowed_trans is not None else {}
+        self.extra_allowed_values = [] if extra_allowed_values is None else extra_allowed_values
+        self.extra_allowed_trans = {} if extra_allowed_trans is None else extra_allowed_trans
 
     def __str__(self):
         return f"<DatetimeType with format='{self.format}'>"
@@ -382,10 +385,16 @@ class DictType(FieldType):
 
             # else use key/val type definations to check data.
             for key, val in field_value.items():
-                key_check, _err = self.key_type.check(key) if self.key_type is not None else key, None
+                # To check keys.
+                key_check, _err = key, None
+                if self.key_type is not None:
+                    key_check, _err = self.key_type.check(key)
                 if _err is not None:
                     return self.failed(f"Dict key '{str(key)}' not matched with FieldType '{str(self.key_type)}'.")
-                val_check, _err = self.val_type.check(val) if self.val_type is not None else val, None
+                # To check values.
+                val_check, _err = val, None
+                if self.val_type is not None:
+                    val_check, _err = self.val_type.check(val)
                 if _err is not None:
                     return self.failed(f"Dict val '{str(val)}' not matched with FieldType '{str(self.val_type)}'.")
                 _dict[key_check] = val_check
