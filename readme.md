@@ -66,6 +66,10 @@ jsonfield
 # ansible  # 如果需要用到corelib/tools/ansible_runner.py工具的话。
 ```
 
+关于python环境，请使用python3.6以上的版本;
+
+Django尽量使用2.0以上的版本。
+
 ### 配置
 
 corelib中的各个模块，支持一系列的配置选项，只需在django的全局settings.py中配置即可。
@@ -644,8 +648,8 @@ def unusable_task(foo, bar=None):
 
     参数：
 
-    lei     字符串，必填。
-    hai     字符串，可选。默认为None。
+    foo     字符串，必填。
+    bar     字符串，可选。默认为None。
     '''
     logger = Logger(msg_prefix='unusable_task(): ')
     logger.log('start...')
