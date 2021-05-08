@@ -148,12 +148,10 @@ class HostGetHandler(APIHandlerBase, ListDataMixin, DetailDataMixin):
         'search': StrType(),  # 表示接受任意字符串
         'env.name': StrType(),  # list数据的filter设置。需跟models中的filter_fields保持一致。
         'status': ChoiceType('running', 'stopped'),  # list数据的filter设置。只能传递这两个值之一，否则校验返回失败
-        'page_length': IntType(min=1),  # 分页单页数据条数
-        'page_index': IntType(min=1),  # 分页页面index
         'id': ObjectType(model=CMDBHost),  # 校验之后将得到一个db数据对象
     }
 
-    @pre_handler(opt=['search', 'group.name', 'coding_type', 'page_length', 'page_index'])
+    @pre_handler(opt=['search', 'env.name', 'status'])
     def getHostList(self):  # action处理函数
         self.getList(model=CMDBHost)
 
