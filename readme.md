@@ -414,7 +414,7 @@ cd /path/to/your_django_project/
 
 python3 corelib/asynctask/bin/asynctask_server
 
-# 启动过程中，异步服务会自动注册asynctask中定义的异步任务处理函数。
+# 启动过程中，异步服务会自动注册各APP，`asynctasks.py`中定义的异步任务处理函数。
 ```
 
 ### 延迟调用
