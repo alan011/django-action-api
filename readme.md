@@ -20,7 +20,7 @@ API非RESTful设计，这是因为，设计这套框架的初衷，是为了在�
 
 * **原生支持异步**
 
-集成了tornado异步非阻塞处理模块，支持高并发任务处理。采用`TCP C/S`模式处理异步任务，不依赖中间件broker，无需安装三方组件。
+集成了tornado异步非阻塞处理模块，支持高并发任务处理。采用`TCP C/S`模式处理异步任务，不依赖中间件broker，无需安装三方组件，即插即用，没有过于复杂的配置。
 
 值得一提的是，django+celery的异步模式中常见的DB链接不释放的问题，在本框架的异步模块中，也得到完美解决（采用django原生方式释放DB连接，支持django的`CONN_MAX_AGE`全局配置参数）。
 
@@ -412,7 +412,7 @@ class AsyncAPIHandler(APIHandlerBase):
 
 cd /path/to/your_django_project/
 
-python3 corelib/asynctask/bin/asynctask_server project_setting_diretory.settings
+python3 corelib/asynctask/bin/asynctask_server
 
 # 启动过程中，异步服务会自动注册asynctask中定义的异步任务处理函数。
 ```
