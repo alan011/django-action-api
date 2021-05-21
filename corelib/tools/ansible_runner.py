@@ -1,6 +1,7 @@
 import os
 import json
 from django.conf import settings
+from threading import Thread
 
 
 class CmdJob(object):
@@ -11,7 +12,7 @@ class CmdJob(object):
 
 
 class AnsibleRunner(object):
-    def __init__(self, ansible_root, ansible_bin, ansible_key, timeout=60, quiet=False):
+    def __init__(self, ansible_root, ansible_bin, ansible_key, timeout=60, quiet=False, parallel=False):
         self.ansible_root = ansible_root
         self.bin = ansible_bin
         self.key = ansible_key
@@ -19,23 +20,27 @@ class AnsibleRunner(object):
         self.timeout = timeout
         self.port = 22 if getattr(settings, 'ANSIBLE_SSH_PORT', None) is None else settings.ANSIBLE_SSH_PORT
         self.quiet = quiet
+        self.parallel = parallel
 
     def add_job(self, task_name, playbook, hosts, vars=None, single_file_playbook=False):
+        # To check playbook.
         if single_file_playbook:
             if not playbook.startswith('/'):
-                return f"ERROR: Path of a single file playbook should always be an absolute path."
+                raise Exception("AnsibleRunner.add_job(): Path of single file playbook should not be relatively.")
             _playbook = playbook
         else:
             _playbook = os.path.join(self.ansible_root, playbook)
-
-        _hosts = ','.join(hosts)
-        _vars = json.dumps(vars)
-
         if not os.path.isfile(_playbook):
-            return f"ERROR: Playbook '{_playbook}' not found."
+            raise Exception(f"AnsibleRunner.add_job(): Playbook '{_playbook}' not found.")
+
+        # To check target hosts
+        _hosts = ','.join(hosts)
         if not _hosts:
-            return "ERROR: Empty target hosts for ansible to run."
+            raise Exception("AnsibleRunner.add_job(): No target hosts provided.")
+
+        # To check vars and generate ansible command.
         if vars:
+            _vars = json.dumps(vars)
             job = CmdJob(
                 f"{self.bin} -i {_hosts}, -e \'{_vars}\' {_playbook} --private-key={self.key} -T {self.timeout} --ssh-extra-args \'-p {self.port}\'",
                 task_name=task_name
@@ -45,6 +50,8 @@ class AnsibleRunner(object):
                 f"{self.bin} -i {_hosts}, {_playbook} --private-key={self.key} -T {self.timeout} --ssh-extra-args \'-p {self.port}\'",
                 task_name=task_name
             )
+
+        # To add job.
         self.jobs.append(job)
 
     def ansible_result_parser(self, job, lines):
@@ -56,7 +63,7 @@ class AnsibleRunner(object):
         }
         """
 
-        # remove playbook retry line, when ansible-playbook runs failed.
+        # To remove playbook retry line, when ansible-playbook runs failed.
         _i = None
         for line in filter(lambda l: l.strip().endswith(".retry"), lines):
             _i = lines.index(line)
@@ -64,13 +71,14 @@ class AnsibleRunner(object):
         if _i is not None:
             lines.pop(_i)
 
-        # rest of lines should be a valid json.
+        # The rest of lines should be a valid json.
         str_result = ''.join(lines)
         if not self.quiet:
             print(str_result)
         try:
             ansible_result = json.loads(str_result)
-        except Exception:  # if result not a json, store the string value as result.
+        except Exception:
+            # To store the string value as result, if not a json.
             job.result = str_result
         else:
             if not self.quiet:
@@ -86,9 +94,30 @@ class AnsibleRunner(object):
                     job.result[host_ip]["log_lines"] = _stdout + _stderr
                 break
 
+    def do_job(self, job):
+        """
+        To run a single job.
+        """
+        if not self.quiet:
+            print(f"===> {job.cmd}")
+        print(job.cmd)
+        with os.popen(job.cmd) as f:
+            self.ansible_result_parser(job, f.readlines())
+
     def go(self):
-        for job in self.jobs:
-            if not self.quiet:
-                print(f"===> {job.cmd}")
-            with os.popen(job.cmd) as f:
-                self.ansible_result_parser(job, f.readlines())
+        """
+        Start to run all jobs.
+        """
+        print(self.jobs)
+        if self.parallel:
+            pool = []
+            for job in self.jobs:
+                pool.append(Thread(target=self.do_job, args=[job]))
+                print('lalala')
+            for p in pool:
+                p.start()
+            for p in pool:
+                p.join()
+        else:
+            for job in self.jobs:
+                self.do_job(job)
